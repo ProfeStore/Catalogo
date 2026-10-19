@@ -132,6 +132,8 @@ legend{padding:0 6px;color:var(--muted);font-size:.85rem;font-weight:700}
         <h2 style="font-size:1.1rem">Ajustes de la tienda</h2>
         <label>Usuario de Instagram (sin @)<input id="set_ig" placeholder="elprofestore"></label>
         <label>WhatsApp con indicativo (solo números)<input id="set_wa" inputmode="numeric" placeholder="573001234567"></label>
+        <label>Dirección (se muestra y se usa para el mapa)<input id="set_dir" placeholder="Cra. 43A #7-50, El Poblado, Medellín"></label>
+        <label>Enlace de Google Maps (botón «Abrir en Google Maps»)<input id="set_map" type="url" placeholder="https://maps.app.goo.gl/..."></label>
         <p class="msg" id="setMsg" role="status"></p>
         <button class="btn primary" style="justify-self:start">Guardar ajustes</button>
       </form>
@@ -445,12 +447,12 @@ $("#igForm").onsubmit=async e=>{
 /* ---- ajustes ---- */
 async function loadSettings(){
   const {data}=await sb.from("ajustes").select("*");
-  (data||[]).forEach(x=>{if(x.clave==="instagram")$("#set_ig").value=x.valor;if(x.clave==="whatsapp")$("#set_wa").value=x.valor});
+  (data||[]).forEach(x=>{if(x.clave==="instagram")$("#set_ig").value=x.valor;if(x.clave==="whatsapp")$("#set_wa").value=x.valor;if(x.clave==="direccion")$("#set_dir").value=x.valor;if(x.clave==="maps_link")$("#set_map").value=x.valor});
 }
 $("#setForm").onsubmit=async e=>{
   e.preventDefault();
   const ig=$("#set_ig").value.trim().replace(/^@/,"").replace(/.*instagram\.com\//,"").replace(/\/.*$/,""),wa=$("#set_wa").value.replace(/\D/g,"");
-  const {error}=await sb.from("ajustes").upsert([{clave:"instagram",valor:ig},{clave:"whatsapp",valor:wa}]);
+  const {error}=await sb.from("ajustes").upsert([{clave:"instagram",valor:ig},{clave:"whatsapp",valor:wa},{clave:"direccion",valor:$("#set_dir").value.trim()},{clave:"maps_link",valor:$("#set_map").value.trim()}]);
   say("#setMsg",error?error.message:"Guardado ✓",!!error);
 };
 load();
