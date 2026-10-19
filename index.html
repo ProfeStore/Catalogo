@@ -497,12 +497,14 @@ const FALLBACK = [
 ];
 
 let P = FALLBACK;
+/* Las fotos viven en la carpeta images/ de GitHub; en la base solo se guarda la ruta */
+const imgSrc=p=>!p?"":/^https?:/.test(p)?p:"https://raw.githubusercontent.com/ProfeStore/Catalogo/HEAD/"+p;
 const LANGS=["es","en","pt","fr"];
 function fromRow(r){
   const d=r.description||{},f=r.features||{},dd={},ff={};
   LANGS.forEach(l=>{dd[l]=d[l]||d.es||"";ff[l]=(f[l]&&f[l].length?f[l]:f.es)||[]});
   const c=Array.isArray(r.colors)&&r.colors.length>=3?r.colors:["#1c1c1f","#e5322d","#f4f4f4"];
-  return {id:r.id,name:r.name,cat:r.cat,type:r.type||"sneaker",price:r.price,old:r.old_price||undefined,c,comfort:r.comfort||4,tag:r.tag||undefined,seasonal:!!r.seasonal,img:r.image_url||"",d:dd,f:ff};
+  return {id:r.id,name:r.name,cat:r.cat,type:r.type||"sneaker",price:r.price,old:r.old_price||undefined,c,comfort:r.comfort||4,tag:r.tag||undefined,seasonal:!!r.seasonal,img:imgSrc(r.image_url),d:dd,f:ff};
 }
 async function loadProducts(){
   const cached=store.get("catalog",null);

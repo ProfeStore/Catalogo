@@ -61,23 +61,12 @@ legend{padding:0 6px;color:var(--muted);font-size:.85rem;font-weight:700}
 </head>
 <body>
 
-<section id="loginView" class="wrap" hidden>
-  <form class="card login" id="loginForm">
-    <img src="assets/logo.webp" alt="El Profe Store" style="width:140px;border-radius:12px;justify-self:center">
-    <h2 style="text-align:center">Panel de administración</h2>
-    <label>Correo<input type="email" id="email" autocomplete="username" required></label>
-    <label>Contraseña<input type="password" id="pass" autocomplete="current-password" required></label>
-    <button class="btn primary" id="loginBtn">Entrar</button>
-    <p class="msg err" id="loginMsg" role="alert"></p>
-  </form>
-</section>
-
-<div id="appView" hidden>
+<div id="appView">
   <header class="top"><div class="wrap">
     <img src="assets/logo.webp" alt="">
     <h1>Catálogo · Admin</h1>
     <a class="btn sm" href="index.html" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;text-decoration:none">Ver tienda</a>
-    <button class="btn sm" id="logoutBtn">Salir</button>
+    <button class="btn sm" id="tokenBtn" title="Token de GitHub para subir fotos">Token GitHub</button>
   </div></header>
   <main class="wrap">
     <div class="bar">
@@ -144,24 +133,38 @@ $("#langs").innerHTML=Object.entries(LANGS).map(([k,n])=>`
   <textarea id="d_${k}" placeholder="Descripción (${k})" maxlength="400"></textarea>
   <textarea id="ft_${k}" placeholder="Características, una por línea (${k})"></textarea></div>`).join("");
 
-/* ---- sesión ---- */
-async function boot(){
-  const {data:{session}}=await sb.auth.getSession();
-  session?enter():($("#loginView").hidden=false,$("#appView").hidden=true);
+/* ---- GitHub: aquí viven las fotos (carpeta images/ del repo) ---- */
+const GH_OWNER="ProfeStore",GH_REPO="Catalogo",GH_DIR="images";
+const imgUrl=p=>!p?"":/^https?:/.test(p)?p:`https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/HEAD/${p}`;
+/* El token NO va en el código (el repo es público y GitHub lo revocaría): se pide una vez y queda en este navegador. */
+const tok={get(){try{return localStorage.getItem("gh_token")||""}catch(e){return ""}},set(v){try{localStorage.setItem("gh_token",v)}catch(e){}}};
+function askToken(force){
+  let t=tok.get();
+  if(!t||force){t=(prompt("Pega tu token de GitHub (permiso Contents: Read and write sobre este repo). Se guarda solo en este navegador.",t)||"").trim();if(t)tok.set(t)}
+  return t;
 }
-async function enter(){
-  const {data:ok}=await sb.rpc("is_admin");
-  if(!ok){await sb.auth.signOut();$("#loginView").hidden=false;$("#appView").hidden=true;$("#loginMsg").textContent="Esta cuenta no es administradora.";return}
-  $("#loginView").hidden=true;$("#appView").hidden=false;load();
+$("#tokenBtn").onclick=()=>askToken(true);
+async function gh(path,opt={}){
+  const t=askToken();if(!t)throw new Error("Falta el token de GitHub");
+  const r=await fetch(`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${path}`,{...opt,headers:{Authorization:"Bearer "+t,Accept:"application/vnd.github+json","Content-Type":"application/json"}});
+  if(r.status===401||r.status===403){tok.set("");throw new Error("GitHub rechazó el token. Vuelve a ponerlo con el botón «Token GitHub».")}
+  return r;
 }
-$("#loginForm").onsubmit=async e=>{
-  e.preventDefault();$("#loginMsg").textContent="";$("#loginBtn").disabled=true;
-  const {error}=await sb.auth.signInWithPassword({email:$("#email").value.trim(),password:$("#pass").value});
-  $("#loginBtn").disabled=false;
-  if(error){$("#loginMsg").textContent="Correo o contraseña incorrectos.";return}
-  enter();
-};
-$("#logoutBtn").onclick=async()=>{await sb.auth.signOut();location.reload()};
+const b64=blob=>new Promise(ok=>{const f=new FileReader();f.onload=()=>ok(f.result.split(",")[1]);f.readAsDataURL(blob)});
+async function uploadImage(blob){
+  const path=`${GH_DIR}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.webp`;
+  const r=await gh(path,{method:"PUT",body:JSON.stringify({message:"Foto de producto (admin)",content:await b64(blob)})});
+  if(!r.ok)throw new Error("No se pudo subir la foto a GitHub ("+r.status+")");
+  return path;
+}
+async function dropImage(p){
+  if(!p||/^https?:/.test(p))return;
+  try{
+    const g=await gh(p);if(!g.ok)return;
+    const {sha}=await g.json();
+    await gh(p,{method:"DELETE",body:JSON.stringify({message:"Quitar foto (admin)",sha})});
+  }catch(e){}
+}
 
 /* ---- lista ---- */
 async function load(){
@@ -177,7 +180,7 @@ function render(){
     d.innerHTML=`<div class="thumb"></div><div><h3></h3><div class="meta"></div></div>
       <div class="acts"><button class="btn sm" data-a="edit">Editar</button><button class="btn sm" data-a="season"></button><button class="btn sm" data-a="vis"></button><button class="btn sm danger" data-a="del">Eliminar</button></div>`;
     const th=d.querySelector(".thumb");
-    if(p.image_url){const i=new Image();i.className="thumb";i.src=p.image_url;i.alt="";th.replaceWith(i)}else th.textContent="sin foto";
+    if(p.image_url){const i=new Image();i.className="thumb";i.src=imgUrl(p.image_url);i.alt="";th.replaceWith(i)}else th.textContent="sin foto";
     d.querySelector("h3").textContent=p.name;
     d.querySelector(".meta").innerHTML=`${CATS[p.cat]||p.cat} · ${money(p.price)} `+(p.seasonal?'<span class="pill s">Temporada</span>':"")+(p.active?"":'<span class="pill">Oculto</span>');
     d.querySelector('[data-a=season]').textContent=p.seasonal?"Quitar de temporada":"Poner de temporada";
@@ -203,10 +206,6 @@ async function remove(p){
   if(error)return say("#listMsg",error.message,1);
   await dropImage(p.image_url);load();
 }
-async function dropImage(url){
-  const m=url&&url.match(/\/productos\/([^?]+)$/);
-  if(m)await sb.storage.from("productos").remove([decodeURIComponent(m[1])]);
-}
 
 /* ---- formulario ---- */
 function openForm(p){
@@ -221,7 +220,7 @@ function openForm(p){
   $("#f_file").value="";showPrev();say("#fMsg","");
   $("#overlay").classList.add("open");$("#f_name").focus();
 }
-function showPrev(){const i=$("#f_prev");i.hidden=!imageUrl;if(imageUrl)i.src=imageUrl;$("#f_rmimg").hidden=!imageUrl}
+function showPrev(){const i=$("#f_prev");i.hidden=!imageUrl;if(imageUrl)i.src=imgUrl(imageUrl);$("#f_rmimg").hidden=!imageUrl}
 $("#f_file").onchange=e=>{const f=e.target.files[0];if(f){$("#f_prev").src=URL.createObjectURL(f);$("#f_prev").hidden=false}};
 $("#f_rmimg").onclick=()=>{imageUrl="";$("#f_file").value="";showPrev()};
 $("#newBtn").onclick=()=>openForm();
@@ -242,10 +241,8 @@ $("#form").onsubmit=async e=>{
   try{
     const file=$("#f_file").files[0],oldImg=editing?.image_url||"";
     if(file){
-      const blob=await shrink(file),path=`${Date.now()}-${Math.random().toString(36).slice(2,8)}.webp`;
-      const {error}=await sb.storage.from("productos").upload(path,blob,{contentType:"image/webp",cacheControl:"31536000"});
-      if(error)throw error;
-      imageUrl=sb.storage.from("productos").getPublicUrl(path).data.publicUrl;
+      say("#fMsg","Subiendo foto a GitHub…");
+      imageUrl=await uploadImage(await shrink(file));
     }
     const description={},features={};
     Object.keys(LANGS).forEach(k=>{
@@ -264,7 +261,7 @@ $("#form").onsubmit=async e=>{
   }catch(err){say("#fMsg","Error: "+(err.message||err),1)}
   $("#saveBtn").disabled=false;
 };
-boot();
+load();
 </script>
 </body>
 </html>
