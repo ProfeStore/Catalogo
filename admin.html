@@ -56,6 +56,21 @@ input[type=checkbox]{width:20px;height:20px;min-height:0;accent-color:var(--acce
 fieldset{border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:14px;display:grid;gap:10px}
 legend{padding:0 6px;color:var(--muted);font-size:.85rem;font-weight:700}
 .preview{width:100%;max-height:200px;object-fit:contain;border-radius:10px;background:var(--surface-2)}
+.tabs{display:flex;gap:8px;overflow-x:auto;margin:16px 0 0;padding-bottom:4px}
+.tab{flex:none;min-height:40px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-weight:700}
+.tab[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chipx{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 14px 0 8px;border-radius:999px;border:1.5px solid var(--line);background:var(--surface-2);font-weight:600;font-size:.88rem}
+.chipx[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 2px rgba(212,0,31,.35)}
+.chipx i{width:22px;height:22px;border-radius:50%;border:1px solid rgba(255,255,255,.35);background:var(--c);display:block}
+.chipx.size{padding:0 14px;min-width:48px;justify-content:center}
+.chipx.size[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.row2{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+.row2>label{flex:1;min-width:160px}
+.rowitem{display:flex;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;flex-wrap:wrap}
+.rowitem .grow{flex:1;min-width:140px;overflow-wrap:anywhere}
+.sw{width:28px;height:28px;border-radius:50%;border:1px solid rgba(255,255,255,.35);flex:none}
+.note{color:var(--muted);font-size:.85rem}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -69,12 +84,58 @@ legend{padding:0 6px;color:var(--muted);font-size:.85rem;font-weight:700}
     <button class="btn sm" id="tokenBtn" title="Token de GitHub para subir fotos">Token GitHub</button>
   </div></header>
   <main class="wrap">
-    <div class="bar">
-      <input type="search" id="filter" placeholder="Buscar producto…" aria-label="Buscar producto">
-      <button class="btn primary" id="newBtn">+ Nuevo producto</button>
+    <div class="tabs" role="tablist" id="tabs">
+      <button class="tab" role="tab" data-t="prod" aria-selected="true">Productos</button>
+      <button class="tab" role="tab" data-t="col" aria-selected="false">Colores</button>
+      <button class="tab" role="tab" data-t="ig" aria-selected="false">Instagram</button>
+      <button class="tab" role="tab" data-t="set" aria-selected="false">Ajustes</button>
     </div>
-    <p class="msg" id="listMsg" role="status"></p>
-    <div class="list" id="list"></div>
+
+    <section id="p_prod">
+      <div class="bar">
+        <input type="search" id="filter" placeholder="Buscar producto…" aria-label="Buscar producto">
+        <button class="btn primary" id="newBtn">+ Nuevo producto</button>
+      </div>
+      <p class="msg" id="listMsg" role="status"></p>
+      <div class="list" id="list"></div>
+    </section>
+
+    <section id="p_col" hidden>
+      <div class="card" style="margin:20px 0">
+        <h2 style="font-size:1.1rem;margin-bottom:10px">Registrar color nuevo</h2>
+        <form class="row2" id="colForm">
+          <label>Nombre<input id="col_name" required maxlength="30" placeholder="Ej: Azul petróleo"></label>
+          <label style="flex:0 0 90px">Color<input type="color" id="col_hex" value="#111111"></label>
+          <button class="btn primary">Agregar</button>
+        </form>
+      </div>
+      <p class="msg" id="colMsg" role="status"></p>
+      <div class="list" id="colList"></div>
+    </section>
+
+    <section id="p_ig" hidden>
+      <div class="card" style="margin:20px 0">
+        <h2 style="font-size:1.1rem;margin-bottom:10px">Agregar video de Instagram</h2>
+        <form class="row2" id="igForm">
+          <label style="flex:2">Enlace del reel o publicación<input id="ig_url" type="url" required placeholder="https://www.instagram.com/reel/XXXXXXXX/"></label>
+          <label>Título interno (opcional)<input id="ig_cap" maxlength="60"></label>
+          <button class="btn primary">Agregar</button>
+        </form>
+        <p class="note" style="margin-top:8px">Los videos aparecen en el catálogo en este mismo orden. La cuenta de Instagram debe ser pública.</p>
+      </div>
+      <p class="msg" id="igMsg" role="status"></p>
+      <div class="list" id="igList"></div>
+    </section>
+
+    <section id="p_set" hidden>
+      <form class="card" id="setForm" style="margin:20px 0;display:grid;gap:12px;max-width:520px">
+        <h2 style="font-size:1.1rem">Ajustes de la tienda</h2>
+        <label>Usuario de Instagram (sin @)<input id="set_ig" placeholder="elprofestore"></label>
+        <label>WhatsApp con indicativo (solo números)<input id="set_wa" inputmode="numeric" placeholder="573001234567"></label>
+        <p class="msg" id="setMsg" role="status"></p>
+        <button class="btn primary" style="justify-self:start">Guardar ajustes</button>
+      </form>
+    </section>
   </main>
 </div>
 
@@ -92,11 +153,14 @@ legend{padding:0 6px;color:var(--muted);font-size:.85rem;font-weight:700}
       <label>Orden (menor = primero)<input id="f_sort" type="number" value="0"></label>
       <label>Dibujo si no hay foto<select id="f_type"><option value="sneaker">Tenis</option><option value="oxford">Oxford</option><option value="loafer">Mocasín</option><option value="boot">Bota</option><option value="sandal">Sandalia</option></select></label>
     </div>
-    <div class="grid3" style="margin-top:12px">
-      <label>Color 1<input type="color" id="f_c0" value="#1c1c1f"></label>
-      <label>Color 2<input type="color" id="f_c1" value="#e5322d"></label>
-      <label>Color 3<input type="color" id="f_c2" value="#f4f4f4"></label>
-    </div>
+    <fieldset><legend>Colores disponibles (se registran en la pestaña «Colores»)</legend>
+      <div class="chips" id="f_colors"></div>
+      <p class="note" id="f_colnote" hidden>Aún no hay colores. Ve a la pestaña «Colores» y registra algunos.</p>
+    </fieldset>
+    <fieldset><legend>Tallas disponibles (el cliente solo verá las marcadas)</legend>
+      <div class="chips" id="f_sizes"></div>
+      <div style="display:flex;gap:8px"><button type="button" class="btn sm" id="sz_all">Marcar todas</button><button type="button" class="btn sm" id="sz_none">Quitar todas</button></div>
+    </fieldset>
     <div style="display:flex;gap:24px;margin-top:14px;flex-wrap:wrap">
       <label class="chk"><input type="checkbox" id="f_seasonal"> De temporada</label>
       <label class="chk"><input type="checkbox" id="f_active" checked> Visible en la tienda</label>
@@ -106,8 +170,9 @@ legend{padding:0 6px;color:var(--muted);font-size:.85rem;font-weight:700}
       <input type="file" id="f_file" accept="image/*" aria-label="Subir foto">
       <button type="button" class="btn sm" id="f_rmimg" hidden style="justify-self:start">Quitar foto</button>
     </fieldset>
-    <fieldset><legend>Descripción y características (una por línea). Si dejas un idioma vacío se usa el español.</legend>
-      <div id="langs"></div>
+    <fieldset><legend>Descripción (escríbela en español; se traduce sola a inglés, portugués y francés al guardar)</legend>
+      <textarea id="f_desc" placeholder="Descripción del producto" maxlength="400"></textarea>
+      <textarea id="f_feat" placeholder="Características (opcional, una por línea)"></textarea>
     </fieldset>
     <p class="msg" id="fMsg" role="alert"></p>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
@@ -124,15 +189,13 @@ const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const sb=supabase.createClient(SB_URL,SB_KEY);
 const $=s=>document.querySelector(s);
 const LANGS={es:"Español",en:"English",pt:"Português",fr:"Français"};
+const OTHER=["en","pt","fr"];
 const CATS={sport:"Deportivos",formal:"Formales",casual:"Casuales",boots:"Botas",sandals:"Sandalias"};
 const money=n=>new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",maximumFractionDigits:0}).format(n);
 let rows=[],editing=null,imageUrl="";
 
-$("#langs").innerHTML=Object.entries(LANGS).map(([k,n])=>`
-  <div style="display:grid;gap:8px;margin-bottom:12px"><b style="font-size:.9rem">${n}</b>
-  <textarea id="d_${k}" placeholder="Descripción (${k})" maxlength="400"></textarea>
-  <textarea id="ft_${k}" placeholder="Características, una por línea (${k})"></textarea></div>`).join("");
-
+const ALL_SIZES=[35,36,37,38,39,40,41,42,43,44,45];
+let colors=[],reels=[],selColors=[],selSizes=[];
 /* ---- GitHub: aquí viven las fotos (carpeta images/ del repo) ---- */
 const GH_OWNER="ProfeStore",GH_REPO="Catalogo",GH_DIR="images";
 const imgUrl=p=>!p?"":/^https?:/.test(p)?p:`https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/HEAD/${p}`;
@@ -171,6 +234,7 @@ async function load(){
   const {data,error}=await sb.from("productos").select("*").order("sort").order("id");
   if(error){say("#listMsg","No se pudo cargar: "+error.message,1);return}
   rows=data;say("#listMsg","");render();
+  loadColors();loadReels();loadSettings();
 }
 function say(sel,t,err){const m=$(sel);m.textContent=t;m.className="msg"+(t?(err?" err":" ok"):"")}
 function render(){
@@ -214,12 +278,55 @@ function openForm(p){
   const v=(id,x)=>$("#f_"+id).value=x;
   v("name",p?.name||"");v("cat",p?.cat||"sport");v("price",p?.price??"");v("old",p?.old_price??"");
   v("comfort",p?.comfort||4);v("tag",p?.tag||"");v("sort",p?.sort??0);v("type",p?.type||"sneaker");
-  [0,1,2].forEach(i=>v("c"+i,p?.colors?.[i]||["#1c1c1f","#e5322d","#f4f4f4"][i]));
+  selColors=[...(p?.color_ids||[])];selSizes=p?[...(p.sizes||[])]:[...ALL_SIZES];
+  drawColors();drawSizes();
   $("#f_seasonal").checked=!!p?.seasonal;$("#f_active").checked=p?p.active:true;
-  Object.keys(LANGS).forEach(k=>{$("#d_"+k).value=p?.description?.[k]||"";$("#ft_"+k).value=(p?.features?.[k]||[]).join("\n")});
+  $("#f_desc").value=p?.description?.es||"";$("#f_feat").value=(p?.features?.es||[]).join("\n");
   $("#f_file").value="";showPrev();say("#fMsg","");
   $("#overlay").classList.add("open");$("#f_name").focus();
 }
+function drawColors(){
+  const w=$("#f_colors");w.innerHTML="";$("#f_colnote").hidden=colors.length>0;
+  colors.forEach(c=>{
+    const b=document.createElement("button");b.type="button";b.className="chipx";
+    b.innerHTML="<i></i><span></span>";b.firstChild.style.setProperty("--c",c.hex);b.lastChild.textContent=c.name;
+    b.setAttribute("aria-pressed",selColors.includes(c.id));
+    b.onclick=()=>{selColors=selColors.includes(c.id)?selColors.filter(x=>x!==c.id):[...selColors,c.id];drawColors()};
+    w.appendChild(b);
+  });
+}
+function drawSizes(){
+  const w=$("#f_sizes");w.innerHTML="";
+  ALL_SIZES.forEach(n=>{
+    const b=document.createElement("button");b.type="button";b.className="chipx size";b.textContent=n;
+    b.setAttribute("aria-pressed",selSizes.includes(n));
+    b.onclick=()=>{selSizes=selSizes.includes(n)?selSizes.filter(x=>x!==n):[...selSizes,n].sort((x,y)=>x-y);drawSizes()};
+    w.appendChild(b);
+  });
+}
+$("#sz_all").onclick=()=>{selSizes=[...ALL_SIZES];drawSizes()};
+$("#sz_none").onclick=()=>{selSizes=[];drawSizes()};
+
+/* Traducción automática (MyMemory, gratuita, sin clave). Si falla un idioma se usa el español. */
+const decode=h=>{const t=document.createElement("textarea");t.innerHTML=h;return t.value};
+async function translate(text,to){
+  const r=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=es|${to}`);
+  const j=await r.json(),out=j?.responseData?.translatedText;
+  if(!out||+j.responseStatus!==200||/MYMEMORY WARNING|INVALID/i.test(out))throw new Error("sin traducción");
+  return decode(out);
+}
+async function buildTexts(desc,feats,prev){
+  const description={es:desc},features={es:feats};let failed=[];
+  const sameD=prev?.description?.es===desc,sameF=JSON.stringify(prev?.features?.es||[])===JSON.stringify(feats);
+  await Promise.all(OTHER.map(async lg=>{
+    try{
+      description[lg]=desc?(sameD&&prev.description[lg]?prev.description[lg]:await translate(desc,lg)):"";
+      features[lg]=sameF&&prev?.features?.[lg]?.length===feats.length?prev.features[lg]:await Promise.all(feats.map(f=>translate(f,lg)));
+    }catch(e){description[lg]=desc;features[lg]=feats;failed.push(lg)}
+  }));
+  return {description,features,failed};
+}
+
 function showPrev(){const i=$("#f_prev");i.hidden=!imageUrl;if(imageUrl)i.src=imgUrl(imageUrl);$("#f_rmimg").hidden=!imageUrl}
 $("#f_file").onchange=e=>{const f=e.target.files[0];if(f){$("#f_prev").src=URL.createObjectURL(f);$("#f_prev").hidden=false}};
 $("#f_rmimg").onclick=()=>{imageUrl="";$("#f_file").value="";showPrev()};
@@ -244,22 +351,107 @@ $("#form").onsubmit=async e=>{
       say("#fMsg","Subiendo foto a GitHub…");
       imageUrl=await uploadImage(await shrink(file));
     }
-    const description={},features={};
-    Object.keys(LANGS).forEach(k=>{
-      const d=$("#d_"+k).value.trim(),f=$("#ft_"+k).value.split("\n").map(x=>x.trim()).filter(Boolean);
-      if(d)description[k]=d;if(f.length)features[k]=f;
-    });
+    const desc=$("#f_desc").value.trim(),feats=$("#f_feat").value.split("\n").map(x=>x.trim()).filter(Boolean);
+    say("#fMsg","Traduciendo descripción…");
+    const {description,features,failed}=await buildTexts(desc,feats,editing);
+    const hx=selColors.map(id=>colors.find(c=>c.id===id)?.hex).filter(Boolean),dflt=["#1c1c1f","#e5322d","#f4f4f4"];
     const old=$("#f_old").value;
     const row={name:$("#f_name").value.trim(),cat:$("#f_cat").value,type:$("#f_type").value,price:+$("#f_price").value,
       old_price:old?+old:null,comfort:Math.min(5,Math.max(1,+$("#f_comfort").value||4)),tag:$("#f_tag").value||null,
-      sort:+$("#f_sort").value||0,colors:[0,1,2].map(i=>$("#f_c"+i).value),seasonal:$("#f_seasonal").checked,
+      sort:+$("#f_sort").value||0,colors:[0,1,2].map(i=>hx[i]||dflt[i]),color_ids:selColors,sizes:selSizes,seasonal:$("#f_seasonal").checked,
       active:$("#f_active").checked,image_url:imageUrl||null,description,features};
     const q=editing?sb.from("productos").update(row).eq("id",editing.id):sb.from("productos").insert(row);
     const {error}=await q;if(error)throw error;
     if(oldImg&&oldImg!==imageUrl)await dropImage(oldImg);
     $("#overlay").classList.remove("open");load();
+    if(failed.length)say("#listMsg","Guardado, pero no se pudo traducir a: "+failed.join(", ")+" (se dejó en español).",1);
   }catch(err){say("#fMsg","Error: "+(err.message||err),1)}
   $("#saveBtn").disabled=false;
+};
+
+/* ---- pestañas ---- */
+$("#tabs").onclick=e=>{
+  const t=e.target.dataset.t;if(!t)return;
+  document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected",b===e.target));
+  ["prod","col","ig","set"].forEach(k=>$("#p_"+k).hidden=k!==t);
+};
+
+/* ---- colores ---- */
+async function loadColors(){
+  const {data,error}=await sb.from("colores").select("*").order("sort").order("id");
+  if(error)return say("#colMsg","Falta ejecutar supabase-v2.sql: "+error.message,1);
+  colors=data;say("#colMsg","");
+  const l=$("#colList");l.innerHTML="";
+  colors.forEach(c=>{
+    const d=document.createElement("div");d.className="rowitem";
+    d.innerHTML='<span class="sw"></span><b class="grow"></b><span class="note"></span><button class="btn sm danger">Eliminar</button>';
+    d.querySelector(".sw").style.background=c.hex;d.querySelector("b").textContent=c.name;d.querySelector(".note").textContent=c.hex;
+    d.querySelector("button").onclick=async()=>{
+      if(!confirm(`¿Eliminar el color "${c.name}"? Se quitará de los productos que lo usen.`))return;
+      const {error}=await sb.from("colores").delete().eq("id",c.id);
+      if(error)return say("#colMsg",error.message,1);
+      for(const p of rows.filter(p=>(p.color_ids||[]).includes(c.id)))await sb.from("productos").update({color_ids:p.color_ids.filter(x=>x!==c.id)}).eq("id",p.id);
+      load();
+    };
+    l.appendChild(d);
+  });
+  if(!colors.length)l.innerHTML='<p class="meta">No hay colores registrados.</p>';
+}
+$("#colForm").onsubmit=async e=>{
+  e.preventDefault();
+  const {error}=await sb.from("colores").insert({name:$("#col_name").value.trim(),hex:$("#col_hex").value,sort:colors.length+1});
+  if(error)return say("#colMsg",error.message,1);
+  $("#col_name").value="";loadColors();
+};
+
+/* ---- videos de Instagram ---- */
+const igCode=u=>(String(u).match(/instagram\.com\/(?:[^\/]+\/)?(?:reel|reels|p|tv)\/([\w-]+)/)||[])[1];
+async function loadReels(){
+  const {data,error}=await sb.from("reels").select("*").order("sort").order("id");
+  if(error)return say("#igMsg","Falta ejecutar supabase-v2.sql: "+error.message,1);
+  reels=data;say("#igMsg","");
+  const l=$("#igList");l.innerHTML="";
+  reels.forEach((r,i)=>{
+    const d=document.createElement("div");d.className="rowitem"+(r.active?"":" off");
+    d.innerHTML='<div class="grow"><b></b><div class="note"></div></div><button class="btn sm" data-a="up" aria-label="Subir">↑</button><button class="btn sm" data-a="dn" aria-label="Bajar">↓</button><button class="btn sm" data-a="vis"></button><button class="btn sm danger" data-a="del">Quitar</button>';
+    d.querySelector("b").textContent=r.caption||"Video "+(i+1);d.querySelector(".note").textContent=r.url;
+    d.querySelector('[data-a=vis]').textContent=r.active?"Ocultar":"Mostrar";
+    d.onclick=async e=>{
+      const a=e.target.dataset.a;if(!a)return;
+      let q;
+      if(a==="del"){if(!confirm("¿Quitar este video del catálogo?"))return;q=sb.from("reels").delete().eq("id",r.id)}
+      if(a==="vis")q=sb.from("reels").update({active:!r.active}).eq("id",r.id);
+      if(a==="up"||a==="dn"){
+        const j=i+(a==="up"?-1:1);if(j<0||j>=reels.length)return;
+        const ids=reels.map(x=>x.id);[ids[i],ids[j]]=[ids[j],ids[i]];
+        const res=await Promise.all(ids.map((id,k)=>sb.from("reels").update({sort:k+1}).eq("id",id)));
+        const er=res.find(x=>x.error);er?say("#igMsg",er.error.message,1):loadReels();return;
+      }
+      const {error}=await q;error?say("#igMsg",error.message,1):loadReels();
+    };
+    l.appendChild(d);
+  });
+  if(!reels.length)l.innerHTML='<p class="meta">Aún no hay videos. La sección de Instagram se oculta en la tienda hasta que agregues uno.</p>';
+}
+$("#igForm").onsubmit=async e=>{
+  e.preventDefault();
+  const code=igCode($("#ig_url").value);
+  if(!code)return say("#igMsg","Ese enlace no parece de un reel o publicación de Instagram.",1);
+  const {error}=await sb.from("reels").insert({url:`https://www.instagram.com/reel/${code}/`,caption:$("#ig_cap").value.trim()||null,sort:reels.length+1});
+  if(error)return say("#igMsg",error.message,1);
+  $("#ig_url").value="";$("#ig_cap").value="";loadReels();
+};
+
+/* ---- ajustes ---- */
+async function loadSettings(){
+  const {data}=await sb.from("ajustes").select("*");
+  (data||[]).forEach(x=>{if(x.clave==="instagram")$("#set_ig").value=x.valor;if(x.clave==="whatsapp")$("#set_wa").value=x.valor});
+}
+$("#setForm").onsubmit=async e=>{
+  e.preventDefault();
+  const ig=$("#set_ig").value.trim().replace(/^@/,"").replace(/.*instagram\.com\//,"").replace(/\/.*$/,""),wa=$("#set_wa").value.replace(/\D/g,"");
+  const {error}=await sb.from("ajustes").upsert([{clave:"instagram",valor:ig},{clave:"whatsapp",valor:wa}]);
+  say("#setMsg",error?error.message:"Guardado ✓",!!error);
 };
 load();
 </script>
