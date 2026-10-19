@@ -71,6 +71,13 @@ legend{padding:0 6px;color:var(--muted);font-size:.85rem;font-weight:700}
 .rowitem .grow{flex:1;min-width:140px;overflow-wrap:anywhere}
 .sw{width:28px;height:28px;border-radius:50%;border:1px solid rgba(255,255,255,.35);flex:none}
 .note{color:var(--muted);font-size:.85rem}
+.gal{display:grid;gap:10px}
+.gal-i{display:grid;grid-template-columns:64px 1fr;gap:10px;align-items:center;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:8px}
+.gal-i img{width:64px;height:64px;object-fit:cover;border-radius:8px;background:#000}
+.gal-i .ac{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.gal-i select{min-height:36px;padding:4px 8px;width:auto;flex:1;min-width:140px}
+.pill.ok{background:#14532d;border-color:#14532d}.pill.warn{background:#7c4a03;border-color:#7c4a03}
+.rv-img{width:72px;height:72px;object-fit:cover;border-radius:8px}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -88,6 +95,7 @@ legend{padding:0 6px;color:var(--muted);font-size:.85rem;font-weight:700}
       <button class="tab" role="tab" data-t="prod" aria-selected="true">Productos</button>
       <button class="tab" role="tab" data-t="col" aria-selected="false">Colores</button>
       <button class="tab" role="tab" data-t="ig" aria-selected="false">Instagram</button>
+      <button class="tab" role="tab" data-t="rev" aria-selected="false">Comentarios <span id="revBadge" class="pill s" hidden></span></button>
       <button class="tab" role="tab" data-t="set" aria-selected="false">Ajustes</button>
     </div>
 
@@ -127,12 +135,18 @@ legend{padding:0 6px;color:var(--muted);font-size:.85rem;font-weight:700}
       <div class="list" id="igList"></div>
     </section>
 
+    <section id="p_rev" hidden>
+      <p class="msg" id="revMsg" role="status" style="margin-top:20px"></p>
+      <div class="list" id="revList" style="margin-top:12px"></div>
+    </section>
+
     <section id="p_set" hidden>
       <form class="card" id="setForm" style="margin:20px 0;display:grid;gap:12px;max-width:520px">
         <h2 style="font-size:1.1rem">Ajustes de la tienda</h2>
         <label>Usuario de Instagram (sin @)<input id="set_ig" placeholder="elprofestore"></label>
         <label>WhatsApp con indicativo (solo números)<input id="set_wa" inputmode="numeric" placeholder="573001234567"></label>
-        <label>Dirección o coordenadas (activa el mapa de la tienda; ej: «Cra 43A #7-50, Medellín» o «6.2087,-75.5710»)<input id="set_dir" placeholder="Dirección exacta del local"></label>
+        <label>Dirección que se muestra<input id="set_dir" placeholder="Cl. 17 #7-39"></label>
+        <label>Ubicación para el mapa (dirección completa con ciudad, o coordenadas). Sin esto el mapa no se muestra.<input id="set_mapa" placeholder="Cl. 17 #7-39, Ciudad   o   6.2087,-75.5710"></label>
         <label>Enlace de Google Maps (botón «Abrir en Google Maps»)<input id="set_map" type="url" placeholder="https://maps.app.goo.gl/c6EJsDXZP7Wuh8Mv6"></label>
         <p class="msg" id="setMsg" role="status"></p>
         <button class="btn primary" style="justify-self:start">Guardar ajustes</button>
@@ -167,10 +181,10 @@ legend{padding:0 6px;color:var(--muted);font-size:.85rem;font-weight:700}
       <label class="chk"><input type="checkbox" id="f_seasonal"> De temporada</label>
       <label class="chk"><input type="checkbox" id="f_active" checked> Visible en la tienda</label>
     </div>
-    <fieldset><legend>Foto</legend>
-      <img class="preview" id="f_prev" alt="" hidden>
-      <input type="file" id="f_file" accept="image/*" aria-label="Subir foto">
-      <button type="button" class="btn sm" id="f_rmimg" hidden style="justify-self:start">Quitar foto</button>
+    <fieldset><legend>Fotos del producto (la primera es la principal)</legend>
+      <div id="f_gal" class="gal"></div>
+      <p class="note">Cada foto puede ser de un color distinto de la misma referencia. Si subes otra foto del mismo color, queda como foto adicional. Al elegir un color, el cliente ve la primera foto de ese color.</p>
+      <label class="btn sm" style="justify-self:start;display:inline-flex;align-items:center;cursor:pointer">+ Agregar fotos<input type="file" id="f_file" accept="image/*" multiple hidden></label>
     </fieldset>
     <fieldset><legend>Descripción (escríbela en español; se traduce sola a inglés, portugués y francés al guardar)</legend>
       <textarea id="f_desc" placeholder="Descripción del producto" maxlength="400"></textarea>
@@ -194,9 +208,9 @@ const LANGS={es:"Español",en:"English",pt:"Português",fr:"Français"};
 const OTHER=["en","pt","fr"];
 const CATS={sport:"Deportivos",formal:"Formales",casual:"Casuales",boots:"Botas",sandals:"Sandalias"};
 const money=n=>new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",maximumFractionDigits:0}).format(n);
-let rows=[],editing=null,imageUrl="";
+let rows=[],editing=null,gal=[];
 
-const ALL_SIZES=[35,36,37,38,39,40,41,42,43,44,45];
+const ALL_SIZES=[35,36,37,38,39,40,41,42];
 let colors=[],reels=[],selColors=[],selSizes=[];
 /* ---- GitHub: aquí viven las fotos (carpeta images/ del repo) ---- */
 const GH_OWNER="ProfeStore",GH_REPO="Catalogo",GH_DIR="images";
@@ -236,7 +250,7 @@ async function load(){
   const {data,error}=await sb.from("productos").select("*").order("sort").order("id");
   if(error){say("#listMsg","No se pudo cargar: "+error.message,1);return}
   rows=data;say("#listMsg","");render();
-  loadColors();loadReels();loadSettings();
+  loadColors();loadReels();loadSettings();loadReviews();
 }
 function say(sel,t,err){const m=$(sel);m.textContent=t;m.className="msg"+(t?(err?" err":" ok"):"")}
 function render(){
@@ -275,16 +289,17 @@ async function remove(p){
 
 /* ---- formulario ---- */
 function openForm(p){
-  editing=p||null;imageUrl=p?.image_url||"";
+  editing=p||null;
+  gal=(p?.images?.length?p.images:(p?.image_url?[{path:p.image_url,color_id:null}]:[])).map(i=>({path:i.path,file:null,prev:imgUrl(i.path),color:i.color_id??null}));
   $("#fTitle").textContent=p?"Editar producto":"Nuevo producto";
   const v=(id,x)=>$("#f_"+id).value=x;
   v("name",p?.name||"");v("cat",p?.cat||"sport");v("price",p?.price??"");v("old",p?.old_price??"");
   v("comfort",p?.comfort||4);v("tag",p?.tag||"");v("sort",p?.sort??0);v("type",p?.type||"sneaker");
-  selColors=[...(p?.color_ids||[])];selSizes=p?[...(p.sizes||[])]:[...ALL_SIZES];
+  selColors=[...(p?.color_ids||[])];selSizes=p?[...(p.sizes||[])].filter(n=>ALL_SIZES.includes(n)):[...ALL_SIZES];
   drawColors();drawSizes();
   $("#f_seasonal").checked=!!p?.seasonal;$("#f_active").checked=p?p.active:true;
   $("#f_desc").value=p?.description?.es||"";$("#f_feat").value=(p?.features?.es||[]).join("\n");
-  $("#f_file").value="";showPrev();say("#fMsg","");
+  $("#f_file").value="";drawGal();say("#fMsg","");
   $("#overlay").classList.add("open");$("#f_name").focus();
 }
 function drawColors(){
@@ -329,9 +344,26 @@ async function buildTexts(desc,feats,prev){
   return {description,features,failed};
 }
 
-function showPrev(){const i=$("#f_prev");i.hidden=!imageUrl;if(imageUrl)i.src=imgUrl(imageUrl);$("#f_rmimg").hidden=!imageUrl}
-$("#f_file").onchange=e=>{const f=e.target.files[0];if(f){$("#f_prev").src=URL.createObjectURL(f);$("#f_prev").hidden=false}};
-$("#f_rmimg").onclick=()=>{imageUrl="";$("#f_file").value="";showPrev()};
+function drawGal(){
+  const w=$("#f_gal");w.innerHTML="";
+  gal.forEach((g,i)=>{
+    const d=document.createElement("div");d.className="gal-i";
+    d.innerHTML='<img alt=""><div><div class="meta"></div><div class="ac"><select aria-label="Color de la foto"></select><button type="button" class="btn sm" data-a="first">Hacer principal</button><button type="button" class="btn sm danger" data-a="del">Quitar</button></div></div>';
+    d.querySelector("img").src=g.prev;
+    d.querySelector(".meta").textContent=i===0?"Foto principal":"Foto "+(i+1);
+    const sel=d.querySelector("select");
+    sel.innerHTML='<option value="">Sin color asignado</option>'+colors.map(c=>`<option value="${c.id}">${c.name.replace(/</g,"&lt;")}</option>`).join("");
+    sel.value=g.color??"";sel.onchange=()=>{g.color=sel.value?+sel.value:null};
+    d.querySelector('[data-a=first]').hidden=i===0;
+    d.querySelector('[data-a=first]').onclick=()=>{gal.unshift(...gal.splice(i,1));drawGal()};
+    d.querySelector('[data-a=del]').onclick=()=>{gal.splice(i,1);drawGal()};
+    w.appendChild(d);
+  });
+}
+$("#f_file").onchange=e=>{
+  [...e.target.files].forEach(f=>gal.push({path:null,file:f,prev:URL.createObjectURL(f),color:null}));
+  e.target.value="";drawGal();
+};
 $("#newBtn").onclick=()=>openForm();
 $("#cancelBtn").onclick=()=>$("#overlay").classList.remove("open");
 document.addEventListener("keydown",e=>{if(e.key==="Escape")$("#overlay").classList.remove("open")});
@@ -348,10 +380,11 @@ function shrink(file){return new Promise((ok,ko)=>{
 $("#form").onsubmit=async e=>{
   e.preventDefault();$("#saveBtn").disabled=true;say("#fMsg","Guardando…");
   try{
-    const file=$("#f_file").files[0],oldImg=editing?.image_url||"";
-    if(file){
-      say("#fMsg","Subiendo foto a GitHub…");
-      imageUrl=await uploadImage(await shrink(file));
+    const oldPaths=[...new Set([...(editing?.images||[]).map(i=>i.path),editing?.image_url].filter(Boolean))];
+    const images=[];
+    for(const [i,g] of gal.entries()){
+      if(g.file){say("#fMsg",`Subiendo foto ${i+1} de ${gal.length} a GitHub…`);g.path=await uploadImage(await shrink(g.file));g.file=null}
+      images.push({path:g.path,color_id:g.color});
     }
     const desc=$("#f_desc").value.trim(),feats=$("#f_feat").value.split("\n").map(x=>x.trim()).filter(Boolean);
     say("#fMsg","Traduciendo descripción…");
@@ -361,10 +394,10 @@ $("#form").onsubmit=async e=>{
     const row={name:$("#f_name").value.trim(),cat:$("#f_cat").value,type:$("#f_type").value,price:+$("#f_price").value,
       old_price:old?+old:null,comfort:Math.min(5,Math.max(1,+$("#f_comfort").value||4)),tag:$("#f_tag").value||null,
       sort:+$("#f_sort").value||0,colors:[0,1,2].map(i=>hx[i]||dflt[i]),color_ids:selColors,sizes:selSizes,seasonal:$("#f_seasonal").checked,
-      active:$("#f_active").checked,image_url:imageUrl||null,description,features};
+      active:$("#f_active").checked,image_url:images[0]?.path||null,images,description,features};
     const q=editing?sb.from("productos").update(row).eq("id",editing.id):sb.from("productos").insert(row);
     const {error}=await q;if(error)throw error;
-    if(oldImg&&oldImg!==imageUrl)await dropImage(oldImg);
+    for(const o of oldPaths)if(!images.some(i=>i.path===o))await dropImage(o);
     $("#overlay").classList.remove("open");load();
     if(failed.length)say("#listMsg","Guardado, pero no se pudo traducir a: "+failed.join(", ")+" (se dejó en español).",1);
   }catch(err){say("#fMsg","Error: "+(err.message||err),1)}
@@ -375,7 +408,7 @@ $("#form").onsubmit=async e=>{
 $("#tabs").onclick=e=>{
   const t=e.target.dataset.t;if(!t)return;
   document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected",b===e.target));
-  ["prod","col","ig","set"].forEach(k=>$("#p_"+k).hidden=k!==t);
+  ["prod","col","ig","rev","set"].forEach(k=>$("#p_"+k).hidden=k!==t);
 };
 
 /* ---- colores ---- */
@@ -444,15 +477,47 @@ $("#igForm").onsubmit=async e=>{
   $("#ig_url").value="";$("#ig_cap").value="";loadReels();
 };
 
+/* ---- comentarios de clientes ---- */
+const ST={pending:["Pendiente","warn"],published:["Publicado","ok"],hidden:["Oculto",""]};
+async function loadReviews(){
+  const {data,error}=await sb.from("comentarios").select("*").order("created_at",{ascending:false});
+  if(error)return say("#revMsg","Falta ejecutar supabase-v3.sql: "+error.message,1);
+  say("#revMsg","");
+  const n=data.filter(x=>x.status==="pending").length,bd=$("#revBadge");bd.hidden=!n;bd.textContent=n;
+  const l=$("#revList");l.innerHTML="";
+  data.forEach(c=>{
+    const d=document.createElement("div");d.className="rowitem";
+    d.innerHTML='<img class="rv-img" alt="" hidden><div class="grow"><b></b> <span class="pill"></span><div class="note"></div><div></div></div><div style="display:flex;gap:8px;flex-wrap:wrap"></div>';
+    d.querySelector("b").textContent=c.name+" · "+"★".repeat(c.rating)+"☆".repeat(5-c.rating);
+    const pl=d.querySelector(".pill");pl.textContent=ST[c.status][0];if(ST[c.status][1])pl.classList.add(ST[c.status][1]);
+    d.querySelector(".note").textContent=new Date(c.created_at).toLocaleString("es-CO");
+    d.querySelector(".grow>div:last-child").textContent=c.text;
+    if(c.image_url){const i=d.querySelector("img");i.src=c.image_url;i.hidden=false}
+    const act=d.lastElementChild,add=(t,cls,fn)=>{const b=document.createElement("button");b.className="btn sm "+cls;b.textContent=t;b.onclick=fn;act.appendChild(b)};
+    const set=st=>async()=>{const {error}=await sb.from("comentarios").update({status:st}).eq("id",c.id);error?say("#revMsg",error.message,1):loadReviews()};
+    if(c.status!=="published")add("Publicar","primary",set("published"));
+    if(c.status!=="hidden")add("Ocultar","",set("hidden"));
+    add("Eliminar","danger",async()=>{
+      if(!confirm("¿Eliminar este comentario? No se puede deshacer."))return;
+      const {error}=await sb.from("comentarios").delete().eq("id",c.id);
+      if(error)return say("#revMsg",error.message,1);
+      const m=c.image_url&&c.image_url.match(/\/comentarios\/([^/?]+)$/);if(m)await sb.storage.from("comentarios").remove([m[1]]);
+      loadReviews();
+    });
+    l.appendChild(d);
+  });
+  if(!data.length)l.innerHTML='<p class="meta">Aún no hay comentarios de clientes.</p>';
+}
+
 /* ---- ajustes ---- */
 async function loadSettings(){
   const {data}=await sb.from("ajustes").select("*");
-  (data||[]).forEach(x=>{if(x.clave==="instagram")$("#set_ig").value=x.valor;if(x.clave==="whatsapp")$("#set_wa").value=x.valor;if(x.clave==="direccion")$("#set_dir").value=x.valor;if(x.clave==="maps_link")$("#set_map").value=x.valor});
+  (data||[]).forEach(x=>{if(x.clave==="instagram")$("#set_ig").value=x.valor;if(x.clave==="whatsapp")$("#set_wa").value=x.valor;if(x.clave==="direccion")$("#set_dir").value=x.valor;if(x.clave==="mapa")$("#set_mapa").value=x.valor;if(x.clave==="maps_link")$("#set_map").value=x.valor});
 }
 $("#setForm").onsubmit=async e=>{
   e.preventDefault();
   const ig=$("#set_ig").value.trim().replace(/^@/,"").replace(/.*instagram\.com\//,"").replace(/\/.*$/,""),wa=$("#set_wa").value.replace(/\D/g,"");
-  const {error}=await sb.from("ajustes").upsert([{clave:"instagram",valor:ig},{clave:"whatsapp",valor:wa},{clave:"direccion",valor:$("#set_dir").value.trim()},{clave:"maps_link",valor:$("#set_map").value.trim()}]);
+  const {error}=await sb.from("ajustes").upsert([{clave:"instagram",valor:ig},{clave:"whatsapp",valor:wa},{clave:"direccion",valor:$("#set_dir").value.trim()},{clave:"mapa",valor:$("#set_mapa").value.trim()},{clave:"maps_link",valor:$("#set_map").value.trim()}]);
   say("#setMsg",error?error.message:"Guardado ✓",!!error);
 };
 load();

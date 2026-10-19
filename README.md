@@ -2,7 +2,7 @@
 
 - `index.html` – tienda pública (lee productos de Supabase; si falla usa respaldo local).
 - `admin.html` – panel sin contraseña: agrega, edita, elimina, oculta y marca "de temporada"; sube fotos a `images/` en GitHub.
-- `supabase.sql` – tablas base y datos iniciales. `supabase-v2.sql` – colores, tallas, videos de Instagram y ajustes (ejecutar después).
+- `supabase.sql` – tablas base y datos iniciales. `supabase-v2.sql` – colores, tallas, videos de Instagram y ajustes. `supabase-v3.sql` – tallas hasta 42, galería por color, comentarios con moderación y datos del negocio (ejecutar en orden).
 
 ## Puesta en marcha
 1. Supabase → SQL Editor → pegar y ejecutar `supabase.sql`.
