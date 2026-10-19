@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#000000">
+<title>Admin · El Profe Store</title>
+<link rel="icon" href="assets/logo.webp">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b0b0c;--surface:#151517;--surface-2:#1d1d20;--ink:#f4f4f5;--muted:#a1a1aa;--line:#2a2a2e;--accent:#d4001f;--ok:#3ecf8e;--err:#ff7a7a;color-scheme:dark}
+*{box-sizing:border-box;margin:0}
+body{font-family:'Manrope',system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+h1,h2{font-family:'Fraunces',serif}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.wrap{max-width:1100px;margin:0 auto;padding:0 16px}
+.top{border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5}
+.top .wrap{display:flex;align-items:center;gap:12px;min-height:64px}
+.top img{height:40px;border-radius:8px}
+.top h1{font-size:1.15rem;flex:1}
+.btn{min-height:44px;padding:0 18px;border-radius:999px;border:1px solid var(--line);background:var(--surface-2);font-weight:600}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.danger{color:var(--err)}
+.btn.sm{min-height:36px;padding:0 12px;font-size:.85rem}
+.btn:disabled{opacity:.5;cursor:wait}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px}
+.login{max-width:380px;margin:12vh auto 0;display:grid;gap:14px}
+label{display:grid;gap:4px;font-size:.85rem;color:var(--muted);font-weight:600}
+input,select,textarea{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:44px;width:100%}
+textarea{min-height:80px;resize:vertical}
+input[type=color]{padding:2px;min-height:44px}
+input[type=checkbox]{width:20px;height:20px;min-height:0;accent-color:var(--accent)}
+.msg{font-size:.9rem;min-height:1.3em}.msg.err{color:var(--err)}.msg.ok{color:var(--ok)}
+.bar{display:flex;gap:10px;flex-wrap:wrap;margin:20px 0}
+.bar input{flex:1;min-width:180px}
+.list{display:grid;gap:10px;margin-bottom:60px}
+.item{display:grid;grid-template-columns:64px 1fr;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px}
+.item.off{opacity:.55}
+.thumb{width:64px;height:64px;border-radius:10px;background:var(--surface-2);object-fit:cover;display:grid;place-items:center;font-size:.7rem;color:var(--muted)}
+.item h3{font-size:1rem}
+.meta{color:var(--muted);font-size:.82rem}
+.pill{display:inline-block;font-size:.72rem;font-weight:700;padding:1px 8px;border-radius:99px;background:var(--surface-2);border:1px solid var(--line);margin-right:4px}
+.pill.s{background:var(--accent);border-color:var(--accent)}
+.acts{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap}
+@media(min-width:760px){.item{grid-template-columns:64px 1fr auto}.acts{grid-column:auto}}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;overflow:auto;z-index:10;padding:16px}
+.overlay.open{display:block}
+.modal{max-width:760px;margin:0 auto}
+.grid2{display:grid;gap:12px;grid-template-columns:1fr}
+@media(min-width:640px){.grid2{grid-template-columns:1fr 1fr}.grid3{grid-template-columns:repeat(3,1fr)}}
+.grid3{display:grid;gap:12px;grid-template-columns:1fr 1fr 1fr}
+.chk{display:flex;gap:8px;align-items:center;color:var(--ink);font-size:.95rem}
+fieldset{border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:14px;display:grid;gap:10px}
+legend{padding:0 6px;color:var(--muted);font-size:.85rem;font-weight:700}
+.preview{width:100%;max-height:200px;object-fit:contain;border-radius:10px;background:var(--surface-2)}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+
+<section id="loginView" class="wrap" hidden>
+  <form class="card login" id="loginForm">
+    <img src="assets/logo.webp" alt="El Profe Store" style="width:140px;border-radius:12px;justify-self:center">
+    <h2 style="text-align:center">Panel de administración</h2>
+    <label>Correo<input type="email" id="email" autocomplete="username" required></label>
+    <label>Contraseña<input type="password" id="pass" autocomplete="current-password" required></label>
+    <button class="btn primary" id="loginBtn">Entrar</button>
+    <p class="msg err" id="loginMsg" role="alert"></p>
+  </form>
+</section>
+
+<div id="appView" hidden>
+  <header class="top"><div class="wrap">
+    <img src="assets/logo.webp" alt="">
+    <h1>Catálogo · Admin</h1>
+    <a class="btn sm" href="index.html" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;text-decoration:none">Ver tienda</a>
+    <button class="btn sm" id="logoutBtn">Salir</button>
+  </div></header>
+  <main class="wrap">
+    <div class="bar">
+      <input type="search" id="filter" placeholder="Buscar producto…" aria-label="Buscar producto">
+      <button class="btn primary" id="newBtn">+ Nuevo producto</button>
+    </div>
+    <p class="msg" id="listMsg" role="status"></p>
+    <div class="list" id="list"></div>
+  </main>
+</div>
+
+<div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="fTitle">
+  <form class="card modal" id="form">
+    <h2 id="fTitle" style="margin-bottom:12px">Producto</h2>
+    <div class="grid2">
+      <label>Nombre<input id="f_name" required maxlength="80"></label>
+      <label>Categoría
+        <select id="f_cat"><option value="sport">Deportivos</option><option value="formal">Formales</option><option value="casual">Casuales</option><option value="boots">Botas</option><option value="sandals">Sandalias</option></select></label>
+      <label>Precio (COP)<input id="f_price" type="number" min="0" step="1000" required></label>
+      <label>Precio anterior (opcional, tacha el precio)<input id="f_old" type="number" min="0" step="1000"></label>
+      <label>Comodidad (1-5)<input id="f_comfort" type="number" min="1" max="5" value="4"></label>
+      <label>Etiqueta<select id="f_tag"><option value="">Ninguna</option><option value="new">NUEVO</option><option value="sale">OFERTA</option></select></label>
+      <label>Orden (menor = primero)<input id="f_sort" type="number" value="0"></label>
+      <label>Dibujo si no hay foto<select id="f_type"><option value="sneaker">Tenis</option><option value="oxford">Oxford</option><option value="loafer">Mocasín</option><option value="boot">Bota</option><option value="sandal">Sandalia</option></select></label>
+    </div>
+    <div class="grid3" style="margin-top:12px">
+      <label>Color 1<input type="color" id="f_c0" value="#1c1c1f"></label>
+      <label>Color 2<input type="color" id="f_c1" value="#e5322d"></label>
+      <label>Color 3<input type="color" id="f_c2" value="#f4f4f4"></label>
+    </div>
+    <div style="display:flex;gap:24px;margin-top:14px;flex-wrap:wrap">
+      <label class="chk"><input type="checkbox" id="f_seasonal"> De temporada</label>
+      <label class="chk"><input type="checkbox" id="f_active" checked> Visible en la tienda</label>
+    </div>
+    <fieldset><legend>Foto</legend>
+      <img class="preview" id="f_prev" alt="" hidden>
+      <input type="file" id="f_file" accept="image/*" aria-label="Subir foto">
+      <button type="button" class="btn sm" id="f_rmimg" hidden style="justify-self:start">Quitar foto</button>
+    </fieldset>
+    <fieldset><legend>Descripción y características (una por línea). Si dejas un idioma vacío se usa el español.</legend>
+      <div id="langs"></div>
+    </fieldset>
+    <p class="msg" id="fMsg" role="alert"></p>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+      <button type="button" class="btn" id="cancelBtn">Cancelar</button>
+      <button class="btn primary" id="saveBtn">Guardar</button>
+    </div>
+  </form>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+const SB_URL="https://lddvsxmatxtqjapcuakx.supabase.co";
+const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkZHZzeG1hdHh0cWphcGN1YWt4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIzNzAwOTMsImV4cCI6MjEwNzk0NjA5M30.lnFO_Pch0TWdGX3ocFcHLi_hUOzftj1x4Ag-4o79XMY";
+const sb=supabase.createClient(SB_URL,SB_KEY);
+const $=s=>document.querySelector(s);
+const LANGS={es:"Español",en:"English",pt:"Português",fr:"Français"};
+const CATS={sport:"Deportivos",formal:"Formales",casual:"Casuales",boots:"Botas",sandals:"Sandalias"};
+const money=n=>new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",maximumFractionDigits:0}).format(n);
+let rows=[],editing=null,imageUrl="";
+
+$("#langs").innerHTML=Object.entries(LANGS).map(([k,n])=>`
+  <div style="display:grid;gap:8px;margin-bottom:12px"><b style="font-size:.9rem">${n}</b>
+  <textarea id="d_${k}" placeholder="Descripción (${k})" maxlength="400"></textarea>
+  <textarea id="ft_${k}" placeholder="Características, una por línea (${k})"></textarea></div>`).join("");
+
+/* ---- sesión ---- */
+async function boot(){
+  const {data:{session}}=await sb.auth.getSession();
+  session?enter():($("#loginView").hidden=false,$("#appView").hidden=true);
+}
+async function enter(){
+  const {data:ok}=await sb.rpc("is_admin");
+  if(!ok){await sb.auth.signOut();$("#loginView").hidden=false;$("#appView").hidden=true;$("#loginMsg").textContent="Esta cuenta no es administradora.";return}
+  $("#loginView").hidden=true;$("#appView").hidden=false;load();
+}
+$("#loginForm").onsubmit=async e=>{
+  e.preventDefault();$("#loginMsg").textContent="";$("#loginBtn").disabled=true;
+  const {error}=await sb.auth.signInWithPassword({email:$("#email").value.trim(),password:$("#pass").value});
+  $("#loginBtn").disabled=false;
+  if(error){$("#loginMsg").textContent="Correo o contraseña incorrectos.";return}
+  enter();
+};
+$("#logoutBtn").onclick=async()=>{await sb.auth.signOut();location.reload()};
+
+/* ---- lista ---- */
+async function load(){
+  const {data,error}=await sb.from("productos").select("*").order("sort").order("id");
+  if(error){say("#listMsg","No se pudo cargar: "+error.message,1);return}
+  rows=data;say("#listMsg","");render();
+}
+function say(sel,t,err){const m=$(sel);m.textContent=t;m.className="msg"+(t?(err?" err":" ok"):"")}
+function render(){
+  const q=$("#filter").value.trim().toLowerCase(),l=$("#list");l.innerHTML="";
+  rows.filter(p=>!q||p.name.toLowerCase().includes(q)).forEach(p=>{
+    const d=document.createElement("div");d.className="item"+(p.active?"":" off");
+    d.innerHTML=`<div class="thumb"></div><div><h3></h3><div class="meta"></div></div>
+      <div class="acts"><button class="btn sm" data-a="edit">Editar</button><button class="btn sm" data-a="season"></button><button class="btn sm" data-a="vis"></button><button class="btn sm danger" data-a="del">Eliminar</button></div>`;
+    const th=d.querySelector(".thumb");
+    if(p.image_url){const i=new Image();i.className="thumb";i.src=p.image_url;i.alt="";th.replaceWith(i)}else th.textContent="sin foto";
+    d.querySelector("h3").textContent=p.name;
+    d.querySelector(".meta").innerHTML=`${CATS[p.cat]||p.cat} · ${money(p.price)} `+(p.seasonal?'<span class="pill s">Temporada</span>':"")+(p.active?"":'<span class="pill">Oculto</span>');
+    d.querySelector('[data-a=season]').textContent=p.seasonal?"Quitar de temporada":"Poner de temporada";
+    d.querySelector('[data-a=vis]').textContent=p.active?"Ocultar":"Mostrar";
+    d.onclick=async e=>{
+      const a=e.target.dataset.a;if(!a)return;
+      if(a==="edit")openForm(p);
+      if(a==="season")patch(p,{seasonal:!p.seasonal});
+      if(a==="vis")patch(p,{active:!p.active});
+      if(a==="del"&&confirm(`¿Eliminar "${p.name}"? No se puede deshacer.`))remove(p);
+    };
+    l.appendChild(d);
+  });
+  if(!l.children.length)l.innerHTML='<p class="meta">No hay productos.</p>';
+}
+$("#filter").oninput=render;
+async function patch(p,v){
+  const {error}=await sb.from("productos").update(v).eq("id",p.id);
+  error?say("#listMsg",error.message,1):load();
+}
+async function remove(p){
+  const {error}=await sb.from("productos").delete().eq("id",p.id);
+  if(error)return say("#listMsg",error.message,1);
+  await dropImage(p.image_url);load();
+}
+async function dropImage(url){
+  const m=url&&url.match(/\/productos\/([^?]+)$/);
+  if(m)await sb.storage.from("productos").remove([decodeURIComponent(m[1])]);
+}
+
+/* ---- formulario ---- */
+function openForm(p){
+  editing=p||null;imageUrl=p?.image_url||"";
+  $("#fTitle").textContent=p?"Editar producto":"Nuevo producto";
+  const v=(id,x)=>$("#f_"+id).value=x;
+  v("name",p?.name||"");v("cat",p?.cat||"sport");v("price",p?.price??"");v("old",p?.old_price??"");
+  v("comfort",p?.comfort||4);v("tag",p?.tag||"");v("sort",p?.sort??0);v("type",p?.type||"sneaker");
+  [0,1,2].forEach(i=>v("c"+i,p?.colors?.[i]||["#1c1c1f","#e5322d","#f4f4f4"][i]));
+  $("#f_seasonal").checked=!!p?.seasonal;$("#f_active").checked=p?p.active:true;
+  Object.keys(LANGS).forEach(k=>{$("#d_"+k).value=p?.description?.[k]||"";$("#ft_"+k).value=(p?.features?.[k]||[]).join("\n")});
+  $("#f_file").value="";showPrev();say("#fMsg","");
+  $("#overlay").classList.add("open");$("#f_name").focus();
+}
+function showPrev(){const i=$("#f_prev");i.hidden=!imageUrl;if(imageUrl)i.src=imageUrl;$("#f_rmimg").hidden=!imageUrl}
+$("#f_file").onchange=e=>{const f=e.target.files[0];if(f){$("#f_prev").src=URL.createObjectURL(f);$("#f_prev").hidden=false}};
+$("#f_rmimg").onclick=()=>{imageUrl="";$("#f_file").value="";showPrev()};
+$("#newBtn").onclick=()=>openForm();
+$("#cancelBtn").onclick=()=>$("#overlay").classList.remove("open");
+document.addEventListener("keydown",e=>{if(e.key==="Escape")$("#overlay").classList.remove("open")});
+
+/* Redimensiona a máx. 1000px y convierte a WebP para que la tienda cargue rápido */
+function shrink(file){return new Promise((ok,ko)=>{
+  const i=new Image();i.onload=()=>{
+    const k=Math.min(1,1000/Math.max(i.width,i.height)),c=document.createElement("canvas");
+    c.width=Math.round(i.width*k);c.height=Math.round(i.height*k);c.getContext("2d").drawImage(i,0,0,c.width,c.height);
+    c.toBlob(b=>b?ok(b):ko(new Error("No se pudo procesar la imagen")),"image/webp",.85);
+  };i.onerror=()=>ko(new Error("Imagen inválida"));i.src=URL.createObjectURL(file);
+})}
+
+$("#form").onsubmit=async e=>{
+  e.preventDefault();$("#saveBtn").disabled=true;say("#fMsg","Guardando…");
+  try{
+    const file=$("#f_file").files[0],oldImg=editing?.image_url||"";
+    if(file){
+      const blob=await shrink(file),path=`${Date.now()}-${Math.random().toString(36).slice(2,8)}.webp`;
+      const {error}=await sb.storage.from("productos").upload(path,blob,{contentType:"image/webp",cacheControl:"31536000"});
+      if(error)throw error;
+      imageUrl=sb.storage.from("productos").getPublicUrl(path).data.publicUrl;
+    }
+    const description={},features={};
+    Object.keys(LANGS).forEach(k=>{
+      const d=$("#d_"+k).value.trim(),f=$("#ft_"+k).value.split("\n").map(x=>x.trim()).filter(Boolean);
+      if(d)description[k]=d;if(f.length)features[k]=f;
+    });
+    const old=$("#f_old").value;
+    const row={name:$("#f_name").value.trim(),cat:$("#f_cat").value,type:$("#f_type").value,price:+$("#f_price").value,
+      old_price:old?+old:null,comfort:Math.min(5,Math.max(1,+$("#f_comfort").value||4)),tag:$("#f_tag").value||null,
+      sort:+$("#f_sort").value||0,colors:[0,1,2].map(i=>$("#f_c"+i).value),seasonal:$("#f_seasonal").checked,
+      active:$("#f_active").checked,image_url:imageUrl||null,description,features};
+    const q=editing?sb.from("productos").update(row).eq("id",editing.id):sb.from("productos").insert(row);
+    const {error}=await q;if(error)throw error;
+    if(oldImg&&oldImg!==imageUrl)await dropImage(oldImg);
+    $("#overlay").classList.remove("open");load();
+  }catch(err){say("#fMsg","Error: "+(err.message||err),1)}
+  $("#saveBtn").disabled=false;
+};
+boot();
+</script>
+</body>
+</html>
