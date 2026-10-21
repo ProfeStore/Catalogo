@@ -163,6 +163,10 @@ html,body{overflow-x:clip}
 .lb[hidden]{display:none}
 .lb-body{max-width:min(96vw,1100px);max-height:100%;display:grid;place-items:center}
 .lb-body img{max-width:100%;max-height:calc(100vh - 90px);object-fit:contain;border-radius:8px;display:block}
+.lb-body video{max-width:100%;max-height:calc(100vh - 90px);border-radius:8px;background:#000;display:block}
+.ig-lb{width:min(92vw,420px)!important}
+.m-main{position:relative}
+.m-expand{position:absolute;right:8px;top:8px;width:40px;height:40px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:1.2rem}
 .lb-body svg{width:min(92vw,720px);height:auto;background:#fff;border-radius:16px;padding:16px}
 .lb-x{position:absolute;top:12px;right:12px;width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.4);background:rgba(0,0,0,.5);color:#fff;font-size:1.7rem;line-height:1}
 .lb-n{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:56px;border:0;border-radius:12px;background:rgba(255,255,255,.14);color:#fff;font-size:2rem}
@@ -702,11 +706,25 @@ let P = FALLBACK;
 /* Las fotos viven en la carpeta images/ de GitHub; en la base solo se guarda la ruta */
 const imgSrc=p=>!p?"":/^https?:/.test(p)?p:"https://raw.githubusercontent.com/ProfeStore/Catalogo/HEAD/"+p;
 const LANGS=["es","en","pt","fr"];
+function buildMedia(imgs,vids){
+  const media=[],used=new Set();
+  imgs.forEach((im,i)=>{
+    media.push({type:"img",src:im.src,color:im.color,price:im.price});
+    const lastOfColor=!!im.color&&!imgs.slice(i+1).some(x=>x.color===im.color);
+    vids.forEach((v,j)=>{
+      if(used.has(j))return;
+      if(v.after?v.after===im.path:(v.color&&v.color===im.color&&lastOfColor)){used.add(j);media.push({type:"vid",src:v.src,color:v.color??im.color,price:im.price})}
+    });
+  });
+  vids.forEach((v,j)=>{if(!used.has(j))media.push({type:"vid",src:v.src,color:v.color,price:null})});
+  return media;
+}
 function fromRow(r){
   const d=r.description||{},f=r.features||{},dd={},ff={};
   LANGS.forEach(l=>{dd[l]=d[l]||d.es||"";ff[l]=(f[l]&&f[l].length?f[l]:f.es)||[]});
   const c=Array.isArray(r.colors)&&r.colors.length>=3?r.colors:["#1c1c1f","#e5322d","#f4f4f4"];
-  return {id:r.id,name:r.name,cat:r.cat,type:r.type||"sneaker",price:r.price,old:r.old_price||undefined,c,comfort:r.comfort||4,tag:r.tag||undefined,seasonal:!!r.seasonal,colorIds:r.color_ids||[],sizes:Array.isArray(r.sizes)?r.sizes:ALL_SIZES,imgs:(Array.isArray(r.images)&&r.images.length?r.images:(r.image_url?[{path:r.image_url,color_id:null}]:[])).map(i=>({src:imgSrc(i.path),color:i.color_id??null,price:i.price||null})),img:imgSrc((Array.isArray(r.images)&&r.images[0]?.path)||r.image_url),videos:(Array.isArray(r.videos)&&r.videos.length?r.videos:(r.video_url?[{url:r.video_url,color_id:null}]:[])).map(v=>({src:imgSrc(v.url),color:v.color_id??null})),d:dd,f:ff};
+  const o={id:r.id,name:r.name,cat:r.cat,type:r.type||"sneaker",price:r.price,old:r.old_price||undefined,c,comfort:r.comfort||4,tag:r.tag||undefined,seasonal:!!r.seasonal,colorIds:r.color_ids||[],sizes:Array.isArray(r.sizes)?r.sizes:ALL_SIZES,imgs:(Array.isArray(r.images)&&r.images.length?r.images:(r.image_url?[{path:r.image_url,color_id:null}]:[])).map(i=>({path:i.path,src:imgSrc(i.path),color:i.color_id??null,price:i.price||null})),img:imgSrc((Array.isArray(r.images)&&r.images[0]?.path)||r.image_url),videos:(Array.isArray(r.videos)&&r.videos.length?r.videos:(r.video_url?[{url:r.video_url,color_id:null}]:[])).map(v=>({src:imgSrc(v.url),color:v.color_id??null,after:v.after||null})),d:dd,f:ff};
+  o.media=buildMedia(o.imgs,o.videos);return o;
 }
 const sbGet=async q=>{const r=await fetch(`${SB_URL}/rest/v1/${q}`,{headers:{apikey:SB_KEY,Authorization:"Bearer "+SB_KEY}});if(!r.ok)throw new Error(r.status);return r.json()};
 async function loadProducts(){
@@ -953,48 +971,50 @@ function updateCm(){
   const c=String(CM[s]).replace(".",state.lang==="en"?".":",");
   $("#cmTxt").textContent=t("cmTxt").replace("{s}",s).replace("{c}",c);
 }
-function lbItems(p){return p.imgs&&p.imgs.length?p.imgs.map(i=>i.src):[{svg:shoe(p.type,p.c,"lb"+p.id)}]}
+const igOf=u=>(String(u).match(/instagram\.com\/(?:[^\/]+\/)?(?:reel|reels|p|tv)\/([\w-]+)/)||[])[1];
+function lbItems(p){return p.media&&p.media.length?p.media.map(m=>m.type==="img"?m.src:{video:m.src,ig:igOf(m.src)}):[{svg:shoe(p.type,p.c,"lb"+p.id)}]}
 function curPrice(p){
-  const im=p.imgs&&p.imgs[state.gi];if(im&&im.price)return im.price;
-  if(state.color){const x=(p.imgs||[]).find(i=>i.color===state.color&&i.price);if(x)return x.price}
+  const im=p.media&&p.media[state.gi];if(im&&im.price)return im.price;
+  if(state.color){const x=(p.media||[]).find(i=>i.type==="img"&&i.color===state.color&&i.price);if(x)return x.price}
   return p.price;
 }
 function drawPrice(p){const v=curPrice(p);$("#mPrice").innerHTML=fmt(v)+(p.old&&v===p.price?`<span class="old">${fmt(p.old)}</span>`:"")}
 function drawGallery(p){
   const w=$("#mImg");w.innerHTML="";
   const m=document.createElement("div");m.className="m-main";
-  const imgs=p.imgs||[],vs=p.videos||[],n=imgs.length,vi=state.gi-n,vd=vi>=0?vs[vi]:null,im=imgs[state.gi];
-  if(vd){
+  const md=p.media||[],cur=md[state.gi];
+  if(cur&&cur.type==="vid"){
     m.classList.add("is-video");
-    const ig=(vd.src.match(/instagram\.com\/(?:[^\/]+\/)?(?:reel|reels|p|tv)\/([\w-]+)/)||[])[1];
+    const ig=igOf(cur.src);
     if(ig){
       /* Reel de Instagram: solo se carga al tocar la miniatura, recortado para ver solo el video */
       const box=document.createElement("div");box.className="ig-crop";
       const f=document.createElement("iframe");f.src=`https://www.instagram.com/reel/${ig}/embed`;f.setAttribute("scrolling","no");f.setAttribute("allowfullscreen","");f.title="Video";f.loading="lazy";
       box.appendChild(f);m.appendChild(box);
     }else{
-      const v=document.createElement("video");v.src=vd.src;v.controls=true;v.playsInline=true;v.preload="none";
-      const pj=imgs.find(i=>vd.color&&i.color===vd.color)||imgs[0];if(pj)v.poster=pj.src;
+      const v=document.createElement("video");v.src=cur.src;v.controls=true;v.playsInline=true;v.preload="none";
+      const pj=md.find(x=>x.type==="img"&&cur.color&&x.color===cur.color)||md.find(x=>x.type==="img");if(pj)v.poster=pj.src;
       v.setAttribute("controlslist","nodownload noremoteplayback");v.setAttribute("disablepictureinpicture","");
       m.appendChild(v);
     }
+    const ex=document.createElement("button");ex.type="button";ex.className="m-expand";ex.setAttribute("aria-label","⤢");ex.textContent="⤢";
+    ex.onclick=()=>openLb(lbItems(p),state.gi,i=>{state.gi=i;drawGallery(p)});m.appendChild(ex);
   }else{
-    m.innerHTML=im?`<img class="photo" src="${im.src}" alt="" decoding="async">`:shoe(p.type,p.c,"m"+p.id);
-    m.onclick=()=>openLb(lbItems(p),state.gi);
+    m.innerHTML=cur?`<img class="photo" src="${cur.src}" alt="" decoding="async">`:shoe(p.type,p.c,"m"+p.id);
+    m.onclick=()=>openLb(lbItems(p),state.gi,i=>{state.gi=i;drawGallery(p)});
   }
   w.appendChild(m);drawPrice(p);
-  if(n+vs.length>1){
+  if(md.length>1){
     const th=document.createElement("div");th.className="thumbs";
-    const pick=(x,i)=>{state.gi=i;if(x.color&&colorsOf(p).some(c=>c.id===x.color)){state.color=x.color;fillColors(p)}drawGallery(p)};
-    imgs.forEach((x,i)=>{
-      const b=document.createElement("button");b.type="button";b.className="thumb";b.setAttribute("aria-pressed",i===state.gi);
-      b.innerHTML=`<img src="${x.src}" alt="" loading="lazy">`;b.onclick=()=>pick(x,i);th.appendChild(b);
-    });
-    vs.forEach((x,j)=>{
-      const b=document.createElement("button");b.type="button";b.className="thumb vid";b.setAttribute("aria-pressed",state.gi===n+j);b.setAttribute("aria-label","Video "+(j+1));
-      const c=colorsOf(p).find(c=>c.id===x.color);
-      b.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" fill="currentColor"/></svg>'+(c?`<i style="background:${c.hex}"></i>`:"");
-      b.onclick=()=>pick(x,n+j);th.appendChild(b);
+    md.forEach((x,i)=>{
+      const b=document.createElement("button");b.type="button";b.className="thumb"+(x.type==="vid"?" vid":"");b.setAttribute("aria-pressed",i===state.gi);
+      if(x.type==="img")b.innerHTML=`<img src="${x.src}" alt="" loading="lazy">`;
+      else{
+        const c=colorsOf(p).find(c=>c.id===x.color);b.setAttribute("aria-label","Video");
+        b.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" fill="currentColor"/></svg>'+(c?`<i style="background:${c.hex}"></i>`:"");
+      }
+      b.onclick=()=>{state.gi=i;if(x.color&&colorsOf(p).some(c=>c.id===x.color)){state.color=x.color;fillColors(p)}drawGallery(p)};
+      th.appendChild(b);
     });
     w.appendChild(th);
   }
@@ -1007,21 +1027,32 @@ function fillColors(p){
     const b=document.createElement("button");b.type="button";b.className="sw";
     b.innerHTML='<i></i><span></span>';b.firstChild.style.setProperty("--c",c.hex);
     b.lastChild.textContent=c.name;b.setAttribute("aria-pressed",state.color===c.id);
-    b.onclick=()=>{state.color=c.id;$("#warn").textContent="";[...w.children].forEach(x=>x.setAttribute("aria-pressed",x===b));const k=p.imgs?p.imgs.findIndex(i=>i.color===c.id):-1;if(k>=0){state.gi=k;drawGallery(p)}else drawPrice(p)};
+    b.onclick=()=>{state.color=c.id;$("#warn").textContent="";[...w.children].forEach(x=>x.setAttribute("aria-pressed",x===b));const k=p.media?p.media.findIndex(i=>i.type==="img"&&i.color===c.id):-1;if(k>=0){state.gi=k;drawGallery(p)}else drawPrice(p)};
     w.appendChild(b);
   });
 }
 /* ---------- Lightbox ---------- */
 let lbList=[],lbI=0;
-function openLb(list,i){
-  lbList=list;lbI=i||0;drawLb();$("#lb").hidden=false;$("#lbX").focus();
+let lbSync=null;
+function openLb(list,i,sync){
+  lbSync=sync||null;lbList=list;lbI=i||0;drawLb();$("#lb").hidden=false;$("#lbX").focus();
 }
 function drawLb(){
   const it=lbList[lbI],b=$("#lbBody");
-  b.innerHTML=typeof it==="string"?`<img src="${it}" alt="">`:it.svg;
+  b.innerHTML="";
+  if(typeof it==="string")b.innerHTML=`<img src="${it}" alt="">`;
+  else if(it.svg)b.innerHTML=it.svg;
+  else if(it.ig){
+    const box=document.createElement("div");box.className="ig-crop ig-lb";
+    const f=document.createElement("iframe");f.src=`https://www.instagram.com/reel/${it.ig}/embed`;f.setAttribute("scrolling","no");f.setAttribute("allowfullscreen","");f.title="Video";
+    box.appendChild(f);b.appendChild(box);
+  }else{
+    const v=document.createElement("video");v.src=it.video;v.controls=true;v.autoplay=true;v.playsInline=true;
+    v.setAttribute("controlslist","nodownload noremoteplayback");b.appendChild(v);
+  }
   $("#lbPrev").hidden=$("#lbNext").hidden=lbList.length<2;
 }
-function closeLb(){$("#lb").hidden=true;$("#lbBody").innerHTML=""}
+function closeLb(){$("#lb").hidden=true;$("#lbBody").innerHTML="";if(lbSync){const f=lbSync;lbSync=null;f(lbI)}}
 $("#lbX").onclick=closeLb;
 $("#lb").addEventListener("click",e=>{if(e.target.id==="lb"||e.target.id==="lbBody")closeLb()});
 $("#lbPrev").onclick=()=>{lbI=(lbI-1+lbList.length)%lbList.length;drawLb()};
