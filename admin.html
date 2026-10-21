@@ -194,14 +194,15 @@ legend{padding:0 6px;color:var(--muted);font-size:.85rem;font-weight:700}
       <div class="chips" id="f_sizes"></div>
       <div style="display:flex;gap:8px"><button type="button" class="btn sm" id="sz_all">Marcar todas</button><button type="button" class="btn sm" id="sz_none">Quitar todas</button></div>
     </fieldset>
-    <fieldset><legend>Video del producto (se reproduce dentro de la tienda, sin ir a Instagram)</legend>
+    <fieldset><legend>Video del producto (se ve dentro de la tienda, el cliente no sale a Instagram)</legend>
       <video id="v_prev" controls playsinline preload="metadata" hidden style="width:100%;max-height:220px;border-radius:10px;background:#000"></video>
+      <p class="note" id="v_ig" hidden></p>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <label class="btn sm" style="display:inline-flex;align-items:center;cursor:pointer">Subir video<input type="file" id="v_file" accept="video/mp4,video/webm,video/quicktime" hidden></label>
-        <button type="button" class="btn sm" id="v_link">Pegar enlace del video</button>
+        <button type="button" class="btn sm" id="v_link">Pegar enlace (Instagram o .mp4)</button>
         <button type="button" class="btn sm danger" id="v_rm" hidden>Quitar video</button>
       </div>
-      <p class="note">Instagram no permite reproducir sus videos sin su propia interfaz. Descarga el reel (es tuyo) y súbelo aquí (máx. 25 MB, MP4), o pega el enlace directo a un archivo .mp4.</p>
+      <p class="note">Pega el enlace del reel de Instagram (la cuenta debe ser pública) y se verá dentro del producto, como en la sección de Instagram. También puedes subir un archivo MP4 (máx. 25 MB) o pegar un enlace directo a un .mp4.</p>
     </fieldset>
     <div style="display:flex;gap:24px;margin-top:14px;flex-wrap:wrap">
       <label class="chk"><input type="checkbox" id="f_seasonal"> De temporada</label>
@@ -389,8 +390,11 @@ function drawGal(){
     w.appendChild(d);
   });
 }
+const igCodeV=u=>(String(u).match(/instagram\.com\/(?:[^\/]+\/)?(?:reel|reels|p|tv)\/([\w-]+)/)||[])[1];
 function drawVid(){
-  const v=$("#v_prev");v.hidden=!vid.prev;if(vid.prev)v.src=vid.prev;else v.removeAttribute("src");
+  const v=$("#v_prev"),isIg=!!igCodeV(vid.path||""),n=$("#v_ig");
+  v.hidden=!vid.prev||isIg;if(vid.prev&&!isIg)v.src=vid.prev;else v.removeAttribute("src");
+  n.hidden=!isIg;n.textContent=isIg?"Video de Instagram: "+vid.path:"";
   $("#v_rm").hidden=!vid.prev;
 }
 $("#v_file").onchange=e=>{
@@ -399,8 +403,10 @@ $("#v_file").onchange=e=>{
   vid={path:null,file:f,prev:URL.createObjectURL(f)};drawVid();say("#fMsg","");
 };
 $("#v_link").onclick=()=>{
-  const u=(prompt("Pega el enlace directo del video (termina en .mp4, .webm o .mov)","")||"").trim();if(!u)return;
-  if(/instagram\.com|instagr\.am/i.test(u))return alert("Los enlaces de Instagram no se pueden reproducir sin la interfaz de Instagram. Descarga el reel y súbelo con «Subir video».");
+  const u=(prompt("Pega el enlace del reel de Instagram, o el enlace directo a un video (.mp4, .webm, .mov)","")||"").trim();if(!u)return;
+  const code=igCodeV(u);
+  if(code){vid={path:`https://www.instagram.com/reel/${code}/`,file:null,prev:u};drawVid();return}
+  if(/instagram\.com|instagr\.am/i.test(u))return alert("Ese enlace de Instagram no parece de un reel o publicación.");
   if(!/^https:\/\/.+\.(mp4|webm|mov)(\?.*)?$/i.test(u))return alert("Ese no parece un enlace directo a un video (.mp4, .webm o .mov).");
   vid={path:u,file:null,prev:u};drawVid();
 };
