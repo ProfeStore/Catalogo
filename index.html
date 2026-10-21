@@ -172,7 +172,7 @@ html,body{overflow-x:clip}
 .thumb{flex:none;width:58px;height:58px;border-radius:10px;border:2px solid transparent;padding:0;overflow:hidden;background:var(--surface)}
 .thumb img{width:100%;height:100%;object-fit:cover;display:block}
 .thumb[aria-pressed="true"]{border-color:var(--brand)}
-.thumb.vid{display:grid;place-items:center;background:#111;color:#fff}.thumb.vid svg{width:24px;height:24px}
+.thumb.vid{position:relative;display:grid;place-items:center;background:#111;color:#fff}.thumb.vid i{position:absolute;right:4px;bottom:4px;width:14px;height:14px;border-radius:50%;border:2px solid #fff}.thumb.vid svg{width:24px;height:24px}
 .m-main.is-video{cursor:default}
 .ig-crop{--ig-top:56px;--ig-bottom:200px;position:relative;width:min(100%,340px);aspect-ratio:433/516;overflow:hidden;border-radius:12px;background:#000;margin:0 auto}
 .ig-crop iframe{position:absolute;left:0;top:calc(var(--ig-top) * -1);width:100%;height:calc(100% + var(--ig-top) + var(--ig-bottom));border:0;display:block}
@@ -706,7 +706,7 @@ function fromRow(r){
   const d=r.description||{},f=r.features||{},dd={},ff={};
   LANGS.forEach(l=>{dd[l]=d[l]||d.es||"";ff[l]=(f[l]&&f[l].length?f[l]:f.es)||[]});
   const c=Array.isArray(r.colors)&&r.colors.length>=3?r.colors:["#1c1c1f","#e5322d","#f4f4f4"];
-  return {id:r.id,name:r.name,cat:r.cat,type:r.type||"sneaker",price:r.price,old:r.old_price||undefined,c,comfort:r.comfort||4,tag:r.tag||undefined,seasonal:!!r.seasonal,colorIds:r.color_ids||[],sizes:Array.isArray(r.sizes)?r.sizes:ALL_SIZES,imgs:(Array.isArray(r.images)&&r.images.length?r.images:(r.image_url?[{path:r.image_url,color_id:null}]:[])).map(i=>({src:imgSrc(i.path),color:i.color_id??null,price:i.price||null})),img:imgSrc((Array.isArray(r.images)&&r.images[0]?.path)||r.image_url),video:r.video_url?imgSrc(r.video_url):"",d:dd,f:ff};
+  return {id:r.id,name:r.name,cat:r.cat,type:r.type||"sneaker",price:r.price,old:r.old_price||undefined,c,comfort:r.comfort||4,tag:r.tag||undefined,seasonal:!!r.seasonal,colorIds:r.color_ids||[],sizes:Array.isArray(r.sizes)?r.sizes:ALL_SIZES,imgs:(Array.isArray(r.images)&&r.images.length?r.images:(r.image_url?[{path:r.image_url,color_id:null}]:[])).map(i=>({src:imgSrc(i.path),color:i.color_id??null,price:i.price||null})),img:imgSrc((Array.isArray(r.images)&&r.images[0]?.path)||r.image_url),videos:(Array.isArray(r.videos)&&r.videos.length?r.videos:(r.video_url?[{url:r.video_url,color_id:null}]:[])).map(v=>({src:imgSrc(v.url),color:v.color_id??null})),d:dd,f:ff};
 }
 const sbGet=async q=>{const r=await fetch(`${SB_URL}/rest/v1/${q}`,{headers:{apikey:SB_KEY,Authorization:"Bearer "+SB_KEY}});if(!r.ok)throw new Error(r.status);return r.json()};
 async function loadProducts(){
@@ -963,17 +963,19 @@ function drawPrice(p){const v=curPrice(p);$("#mPrice").innerHTML=fmt(v)+(p.old&&
 function drawGallery(p){
   const w=$("#mImg");w.innerHTML="";
   const m=document.createElement("div");m.className="m-main";
-  const n=(p.imgs||[]).length,isVid=!!p.video&&state.gi===n,im=p.imgs&&p.imgs[state.gi];
-  if(isVid){
+  const imgs=p.imgs||[],vs=p.videos||[],n=imgs.length,vi=state.gi-n,vd=vi>=0?vs[vi]:null,im=imgs[state.gi];
+  if(vd){
     m.classList.add("is-video");
-    const ig=(p.video.match(/instagram\.com\/(?:[^\/]+\/)?(?:reel|reels|p|tv)\/([\w-]+)/)||[])[1];
+    const ig=(vd.src.match(/instagram\.com\/(?:[^\/]+\/)?(?:reel|reels|p|tv)\/([\w-]+)/)||[])[1];
     if(ig){
-      /* Reel de Instagram incrustado, recortado para que se vea solo el video */
+      /* Reel de Instagram: solo se carga al tocar la miniatura, recortado para ver solo el video */
       const box=document.createElement("div");box.className="ig-crop";
       const f=document.createElement("iframe");f.src=`https://www.instagram.com/reel/${ig}/embed`;f.setAttribute("scrolling","no");f.setAttribute("allowfullscreen","");f.title="Video";f.loading="lazy";
       box.appendChild(f);m.appendChild(box);
     }else{
-      const v=document.createElement("video");v.src=p.video;v.controls=true;v.playsInline=true;v.preload="none";if(im||(p.imgs&&p.imgs[0]))v.poster=(im||p.imgs[0]).src;v.setAttribute("controlslist","nodownload noremoteplayback");v.setAttribute("disablepictureinpicture","");
+      const v=document.createElement("video");v.src=vd.src;v.controls=true;v.playsInline=true;v.preload="none";
+      const pj=imgs.find(i=>vd.color&&i.color===vd.color)||imgs[0];if(pj)v.poster=pj.src;
+      v.setAttribute("controlslist","nodownload noremoteplayback");v.setAttribute("disablepictureinpicture","");
       m.appendChild(v);
     }
   }else{
@@ -981,19 +983,19 @@ function drawGallery(p){
     m.onclick=()=>openLb(lbItems(p),state.gi);
   }
   w.appendChild(m);drawPrice(p);
-  if(n+(p.video?1:0)>1){
+  if(n+vs.length>1){
     const th=document.createElement("div");th.className="thumbs";
-    (p.imgs||[]).forEach((x,i)=>{
+    const pick=(x,i)=>{state.gi=i;if(x.color&&colorsOf(p).some(c=>c.id===x.color)){state.color=x.color;fillColors(p)}drawGallery(p)};
+    imgs.forEach((x,i)=>{
       const b=document.createElement("button");b.type="button";b.className="thumb";b.setAttribute("aria-pressed",i===state.gi);
-      b.innerHTML=`<img src="${x.src}" alt="" loading="lazy">`;
-      b.onclick=()=>{state.gi=i;if(x.color&&colorsOf(p).some(c=>c.id===x.color)){state.color=x.color;fillColors(p)}drawGallery(p)};
-      th.appendChild(b);
+      b.innerHTML=`<img src="${x.src}" alt="" loading="lazy">`;b.onclick=()=>pick(x,i);th.appendChild(b);
     });
-    if(p.video){
-      const b=document.createElement("button");b.type="button";b.className="thumb vid";b.setAttribute("aria-pressed",state.gi===n);b.setAttribute("aria-label","Video");
-      b.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" fill="currentColor"/></svg>';
-      b.onclick=()=>{state.gi=n;drawGallery(p)};th.appendChild(b);
-    }
+    vs.forEach((x,j)=>{
+      const b=document.createElement("button");b.type="button";b.className="thumb vid";b.setAttribute("aria-pressed",state.gi===n+j);b.setAttribute("aria-label","Video "+(j+1));
+      const c=colorsOf(p).find(c=>c.id===x.color);
+      b.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" fill="currentColor"/></svg>'+(c?`<i style="background:${c.hex}"></i>`:"");
+      b.onclick=()=>pick(x,n+j);th.appendChild(b);
+    });
     w.appendChild(th);
   }
 }
