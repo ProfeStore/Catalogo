@@ -75,7 +75,8 @@ legend{padding:0 6px;color:var(--muted);font-size:.85rem;font-weight:700}
 .gal-i{display:grid;grid-template-columns:64px 1fr;gap:10px;align-items:center;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:8px}
 .gal-i img{width:64px;height:64px;object-fit:cover;border-radius:8px;background:#000}
 .gal-i .ac{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.gal-i select{min-height:36px;padding:4px 8px;width:auto;flex:1;min-width:140px}
+.gal-i select{min-height:36px;padding:4px 8px;width:auto;flex:1;min-width:120px}
+.gal-i input.gp{min-height:36px;padding:4px 8px;width:150px}
 .pill.ok{background:#14532d;border-color:#14532d}.pill.warn{background:#7c4a03;border-color:#7c4a03}
 .rv-img{width:72px;height:72px;object-fit:cover;border-radius:8px}
 [hidden]{display:none!important}
@@ -93,6 +94,7 @@ legend{padding:0 6px;color:var(--muted);font-size:.85rem;font-weight:700}
   <main class="wrap">
     <div class="tabs" role="tablist" id="tabs">
       <button class="tab" role="tab" data-t="prod" aria-selected="true">Productos</button>
+      <button class="tab" role="tab" data-t="cat" aria-selected="false">Categorías</button>
       <button class="tab" role="tab" data-t="col" aria-selected="false">Colores</button>
       <button class="tab" role="tab" data-t="ig" aria-selected="false">Instagram</button>
       <button class="tab" role="tab" data-t="rev" aria-selected="false">Comentarios <span id="revBadge" class="pill s" hidden></span></button>
@@ -102,10 +104,25 @@ legend{padding:0 6px;color:var(--muted);font-size:.85rem;font-weight:700}
     <section id="p_prod">
       <div class="bar">
         <input type="search" id="filter" placeholder="Buscar producto…" aria-label="Buscar producto">
+        <select id="fl_cat" aria-label="Filtrar por categoría" style="flex:0 1 190px"><option value="">Todas las categorías</option></select>
+        <select id="fl_col" aria-label="Filtrar por color" style="flex:0 1 170px"><option value="">Todos los colores</option></select>
         <button class="btn primary" id="newBtn">+ Nuevo producto</button>
       </div>
       <p class="msg" id="listMsg" role="status"></p>
       <div class="list" id="list"></div>
+    </section>
+
+    <section id="p_cat" hidden>
+      <div class="card" style="margin:20px 0">
+        <h2 style="font-size:1.1rem;margin-bottom:10px">Registrar categoría nueva</h2>
+        <form class="row2" id="catForm">
+          <label>Nombre<input id="cat_name" required maxlength="30" placeholder="Ej: Tenis casuales"></label>
+          <button class="btn primary">Agregar</button>
+        </form>
+        <p class="note" style="margin-top:8px">El catálogo muestra solo las categorías registradas aquí, más «Todos» y «Favoritos».</p>
+      </div>
+      <p class="msg" id="catMsg" role="status"></p>
+      <div class="list" id="catList"></div>
     </section>
 
     <section id="p_col" hidden>
@@ -161,7 +178,7 @@ legend{padding:0 6px;color:var(--muted);font-size:.85rem;font-weight:700}
     <div class="grid2">
       <label>Nombre<input id="f_name" required maxlength="80"></label>
       <label>Categoría
-        <select id="f_cat"><option value="sport">Deportivos</option><option value="formal">Formales</option><option value="casual">Casuales</option><option value="boots">Botas</option><option value="sandals">Sandalias</option></select></label>
+        <select id="f_cat"></select></label>
       <label>Precio (COP)<input id="f_price" type="number" min="0" step="1000" required></label>
       <label>Precio anterior (opcional, tacha el precio)<input id="f_old" type="number" min="0" step="1000"></label>
       <label>Comodidad (1-5)<input id="f_comfort" type="number" min="1" max="5" value="4"></label>
@@ -177,13 +194,22 @@ legend{padding:0 6px;color:var(--muted);font-size:.85rem;font-weight:700}
       <div class="chips" id="f_sizes"></div>
       <div style="display:flex;gap:8px"><button type="button" class="btn sm" id="sz_all">Marcar todas</button><button type="button" class="btn sm" id="sz_none">Quitar todas</button></div>
     </fieldset>
+    <fieldset><legend>Video del producto (se reproduce dentro de la tienda, sin ir a Instagram)</legend>
+      <video id="v_prev" controls playsinline preload="metadata" hidden style="width:100%;max-height:220px;border-radius:10px;background:#000"></video>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <label class="btn sm" style="display:inline-flex;align-items:center;cursor:pointer">Subir video<input type="file" id="v_file" accept="video/mp4,video/webm,video/quicktime" hidden></label>
+        <button type="button" class="btn sm" id="v_link">Pegar enlace del video</button>
+        <button type="button" class="btn sm danger" id="v_rm" hidden>Quitar video</button>
+      </div>
+      <p class="note">Instagram no permite reproducir sus videos sin su propia interfaz. Descarga el reel (es tuyo) y súbelo aquí (máx. 25 MB, MP4), o pega el enlace directo a un archivo .mp4.</p>
+    </fieldset>
     <div style="display:flex;gap:24px;margin-top:14px;flex-wrap:wrap">
       <label class="chk"><input type="checkbox" id="f_seasonal"> De temporada</label>
       <label class="chk"><input type="checkbox" id="f_active" checked> Visible en la tienda</label>
     </div>
     <fieldset><legend>Fotos del producto (la primera es la principal)</legend>
       <div id="f_gal" class="gal"></div>
-      <p class="note">Cada foto puede ser de un color distinto de la misma referencia. Si subes otra foto del mismo color, queda como foto adicional. Al elegir un color, el cliente ve la primera foto de ese color.</p>
+      <p class="note">Cada foto puede ser de un color distinto de la misma referencia, con su propio precio si cambia (déjalo vacío para usar el precio del producto). Si subes otra foto del mismo color, queda como foto adicional. Al elegir un color o pasar de foto, el cliente ve el precio de esa foto.</p>
       <label class="btn sm" style="justify-self:start;display:inline-flex;align-items:center;cursor:pointer">+ Agregar fotos<input type="file" id="f_file" accept="image/*" multiple hidden></label>
     </fieldset>
     <fieldset><legend>Descripción (escríbela en español; se traduce sola a inglés, portugués y francés al guardar)</legend>
@@ -206,9 +232,9 @@ const sb=supabase.createClient(SB_URL,SB_KEY);
 const $=s=>document.querySelector(s);
 const LANGS={es:"Español",en:"English",pt:"Português",fr:"Français"};
 const OTHER=["en","pt","fr"];
-const CATS={sport:"Deportivos",formal:"Formales",casual:"Casuales",boots:"Botas",sandals:"Sandalias"};
+let cats=[];const catLabel=k=>(cats.find(c=>c.slug===k)||{}).name||k;
 const money=n=>new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",maximumFractionDigits:0}).format(n);
-let rows=[],editing=null,gal=[];
+let rows=[],editing=null,gal=[],vid={path:null,file:null,prev:""};
 
 const ALL_SIZES=[35,36,37,38,39,40,41,42];
 let colors=[],reels=[],selColors=[],selSizes=[];
@@ -250,19 +276,20 @@ async function load(){
   const {data,error}=await sb.from("productos").select("*").order("sort").order("id");
   if(error){say("#listMsg","No se pudo cargar: "+error.message,1);return}
   rows=data;say("#listMsg","");render();
-  loadColors();loadReels();loadSettings();loadReviews();
+  loadCats();loadColors();loadReels();loadSettings();loadReviews();
 }
 function say(sel,t,err){const m=$(sel);m.textContent=t;m.className="msg"+(t?(err?" err":" ok"):"")}
 function render(){
   const q=$("#filter").value.trim().toLowerCase(),l=$("#list");l.innerHTML="";
-  rows.filter(p=>!q||p.name.toLowerCase().includes(q)).forEach(p=>{
+  const fc=$("#fl_cat").value,fk=$("#fl_col").value;
+  rows.filter(p=>(!q||p.name.toLowerCase().includes(q))&&(!fc||p.cat===fc)&&(!fk||(p.color_ids||[]).includes(+fk))).forEach(p=>{
     const d=document.createElement("div");d.className="item"+(p.active?"":" off");
     d.innerHTML=`<div class="thumb"></div><div><h3></h3><div class="meta"></div></div>
       <div class="acts"><button class="btn sm" data-a="edit">Editar</button><button class="btn sm" data-a="season"></button><button class="btn sm" data-a="vis"></button><button class="btn sm danger" data-a="del">Eliminar</button></div>`;
     const th=d.querySelector(".thumb");
     if(p.image_url){const i=new Image();i.className="thumb";i.src=imgUrl(p.image_url);i.alt="";th.replaceWith(i)}else th.textContent="sin foto";
     d.querySelector("h3").textContent=p.name;
-    d.querySelector(".meta").innerHTML=`${CATS[p.cat]||p.cat} · ${money(p.price)} `+(p.seasonal?'<span class="pill s">Temporada</span>':"")+(p.active?"":'<span class="pill">Oculto</span>');
+    d.querySelector(".meta").innerHTML=`${catLabel(p.cat)} · ${money(p.price)} `+(p.seasonal?'<span class="pill s">Temporada</span>':"")+(p.active?"":'<span class="pill">Oculto</span>');
     d.querySelector('[data-a=season]').textContent=p.seasonal?"Quitar de temporada":"Poner de temporada";
     d.querySelector('[data-a=vis]').textContent=p.active?"Ocultar":"Mostrar";
     d.onclick=async e=>{
@@ -276,7 +303,7 @@ function render(){
   });
   if(!l.children.length)l.innerHTML='<p class="meta">No hay productos.</p>';
 }
-$("#filter").oninput=render;
+$("#filter").oninput=render;$("#fl_cat").onchange=render;$("#fl_col").onchange=render;
 async function patch(p,v){
   const {error}=await sb.from("productos").update(v).eq("id",p.id);
   error?say("#listMsg",error.message,1):load();
@@ -290,16 +317,17 @@ async function remove(p){
 /* ---- formulario ---- */
 function openForm(p){
   editing=p||null;
-  gal=(p?.images?.length?p.images:(p?.image_url?[{path:p.image_url,color_id:null}]:[])).map(i=>({path:i.path,file:null,prev:imgUrl(i.path),color:i.color_id??null}));
+  gal=(p?.images?.length?p.images:(p?.image_url?[{path:p.image_url,color_id:null}]:[])).map(i=>({path:i.path,file:null,prev:imgUrl(i.path),color:i.color_id??null,price:i.price??null}));
   $("#fTitle").textContent=p?"Editar producto":"Nuevo producto";
   const v=(id,x)=>$("#f_"+id).value=x;
-  v("name",p?.name||"");v("cat",p?.cat||"sport");v("price",p?.price??"");v("old",p?.old_price??"");
+  v("name",p?.name||"");fillCat(p?.cat);v("price",p?.price??"");v("old",p?.old_price??"");
   v("comfort",p?.comfort||4);v("tag",p?.tag||"");v("sort",p?.sort??0);v("type",p?.type||"sneaker");
   selColors=[...(p?.color_ids||[])];selSizes=p?[...(p.sizes||[])].filter(n=>ALL_SIZES.includes(n)):[...ALL_SIZES];
   drawColors();drawSizes();
   $("#f_seasonal").checked=!!p?.seasonal;$("#f_active").checked=p?p.active:true;
   $("#f_desc").value=p?.description?.es||"";$("#f_feat").value=(p?.features?.es||[]).join("\n");
-  $("#f_file").value="";drawGal();say("#fMsg","");
+  $("#f_file").value="";drawGal();
+  vid=p?.video_url?{path:p.video_url,file:null,prev:imgUrl(p.video_url)}:{path:null,file:null,prev:""};drawVid();say("#fMsg","");
   $("#overlay").classList.add("open");$("#f_name").focus();
 }
 function drawColors(){
@@ -348,17 +376,41 @@ function drawGal(){
   const w=$("#f_gal");w.innerHTML="";
   gal.forEach((g,i)=>{
     const d=document.createElement("div");d.className="gal-i";
-    d.innerHTML='<img alt=""><div><div class="meta"></div><div class="ac"><select aria-label="Color de la foto"></select><button type="button" class="btn sm" data-a="first">Hacer principal</button><button type="button" class="btn sm danger" data-a="del">Quitar</button></div></div>';
+    d.innerHTML='<img alt=""><div><div class="meta"></div><div class="ac"><select aria-label="Color de la foto"></select><input class="gp" type="number" min="0" step="1000" placeholder="Precio de esta foto" aria-label="Precio de esta foto (opcional)"><button type="button" class="btn sm" data-a="first">Hacer principal</button><button type="button" class="btn sm danger" data-a="del">Quitar</button></div></div>';
     d.querySelector("img").src=g.prev;
     d.querySelector(".meta").textContent=i===0?"Foto principal":"Foto "+(i+1);
     const sel=d.querySelector("select");
     sel.innerHTML='<option value="">Sin color asignado</option>'+colors.map(c=>`<option value="${c.id}">${c.name.replace(/</g,"&lt;")}</option>`).join("");
     sel.value=g.color??"";sel.onchange=()=>{g.color=sel.value?+sel.value:null};
+    const gp=d.querySelector(".gp");gp.value=g.price??"";gp.oninput=()=>{g.price=gp.value?+gp.value:null};
     d.querySelector('[data-a=first]').hidden=i===0;
     d.querySelector('[data-a=first]').onclick=()=>{gal.unshift(...gal.splice(i,1));drawGal()};
     d.querySelector('[data-a=del]').onclick=()=>{gal.splice(i,1);drawGal()};
     w.appendChild(d);
   });
+}
+function drawVid(){
+  const v=$("#v_prev");v.hidden=!vid.prev;if(vid.prev)v.src=vid.prev;else v.removeAttribute("src");
+  $("#v_rm").hidden=!vid.prev;
+}
+$("#v_file").onchange=e=>{
+  const f=e.target.files[0];e.target.value="";if(!f)return;
+  if(f.size>25*1024*1024)return say("#fMsg","El video pesa "+(f.size/1048576).toFixed(1)+" MB; el máximo es 25 MB. Comprímelo antes de subirlo.",1);
+  vid={path:null,file:f,prev:URL.createObjectURL(f)};drawVid();say("#fMsg","");
+};
+$("#v_link").onclick=()=>{
+  const u=(prompt("Pega el enlace directo del video (termina en .mp4, .webm o .mov)","")||"").trim();if(!u)return;
+  if(/instagram\.com|instagr\.am/i.test(u))return alert("Los enlaces de Instagram no se pueden reproducir sin la interfaz de Instagram. Descarga el reel y súbelo con «Subir video».");
+  if(!/^https:\/\/.+\.(mp4|webm|mov)(\?.*)?$/i.test(u))return alert("Ese no parece un enlace directo a un video (.mp4, .webm o .mov).");
+  vid={path:u,file:null,prev:u};drawVid();
+};
+$("#v_rm").onclick=()=>{vid={path:null,file:null,prev:""};drawVid()};
+async function uploadVideo(file){
+  const ext=(file.name.split(".").pop()||"mp4").toLowerCase().replace(/[^a-z0-9]/g,"")||"mp4";
+  const path=`videos/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+  const r=await gh(path,{method:"PUT",body:JSON.stringify({message:"Video de producto (admin)",content:await b64(file)})});
+  if(!r.ok)throw new Error("No se pudo subir el video a GitHub ("+r.status+")");
+  return path;
 }
 $("#f_file").onchange=e=>{
   [...e.target.files].forEach(f=>gal.push({path:null,file:f,prev:URL.createObjectURL(f),color:null}));
@@ -380,12 +432,13 @@ function shrink(file){return new Promise((ok,ko)=>{
 $("#form").onsubmit=async e=>{
   e.preventDefault();$("#saveBtn").disabled=true;say("#fMsg","Guardando…");
   try{
-    const oldPaths=[...new Set([...(editing?.images||[]).map(i=>i.path),editing?.image_url].filter(Boolean))];
+    const oldPaths=[...new Set([...(editing?.images||[]).map(i=>i.path),editing?.image_url,editing?.video_url].filter(Boolean))];
     const images=[];
     for(const [i,g] of gal.entries()){
       if(g.file){say("#fMsg",`Subiendo foto ${i+1} de ${gal.length} a GitHub…`);g.path=await uploadImage(await shrink(g.file));g.file=null}
-      images.push({path:g.path,color_id:g.color});
+      images.push({path:g.path,color_id:g.color,price:g.price||null});
     }
+    if(vid.file){say("#fMsg","Subiendo video a GitHub…");vid.path=await uploadVideo(vid.file);vid.file=null}
     const desc=$("#f_desc").value.trim(),feats=$("#f_feat").value.split("\n").map(x=>x.trim()).filter(Boolean);
     say("#fMsg","Traduciendo descripción…");
     const {description,features,failed}=await buildTexts(desc,feats,editing);
@@ -394,10 +447,10 @@ $("#form").onsubmit=async e=>{
     const row={name:$("#f_name").value.trim(),cat:$("#f_cat").value,type:$("#f_type").value,price:+$("#f_price").value,
       old_price:old?+old:null,comfort:Math.min(5,Math.max(1,+$("#f_comfort").value||4)),tag:$("#f_tag").value||null,
       sort:+$("#f_sort").value||0,colors:[0,1,2].map(i=>hx[i]||dflt[i]),color_ids:selColors,sizes:selSizes,seasonal:$("#f_seasonal").checked,
-      active:$("#f_active").checked,image_url:images[0]?.path||null,images,description,features};
+      active:$("#f_active").checked,image_url:images[0]?.path||null,images,video_url:vid.path||null,description,features};
     const q=editing?sb.from("productos").update(row).eq("id",editing.id):sb.from("productos").insert(row);
     const {error}=await q;if(error)throw error;
-    for(const o of oldPaths)if(!images.some(i=>i.path===o))await dropImage(o);
+    for(const o of oldPaths)if(!images.some(i=>i.path===o)&&o!==vid.path)await dropImage(o);
     $("#overlay").classList.remove("open");load();
     if(failed.length)say("#listMsg","Guardado, pero no se pudo traducir a: "+failed.join(", ")+" (se dejó en español).",1);
   }catch(err){say("#fMsg","Error: "+(err.message||err),1)}
@@ -408,14 +461,62 @@ $("#form").onsubmit=async e=>{
 $("#tabs").onclick=e=>{
   const t=e.target.dataset.t;if(!t)return;
   document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected",b===e.target));
-  ["prod","col","ig","rev","set"].forEach(k=>$("#p_"+k).hidden=k!==t);
+  ["prod","cat","col","ig","rev","set"].forEach(k=>$("#p_"+k).hidden=k!==t);
 };
+
+/* ---- categorías ---- */
+const slugify=n=>n.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")||"cat";
+async function loadCats(){
+  const {data,error}=await sb.from("categorias").select("*").order("sort").order("id");
+  if(error)return say("#catMsg","Falta ejecutar supabase-v4.sql: "+error.message,1);
+  cats=data;say("#catMsg","");fillFilters();render();
+  const l=$("#catList");l.innerHTML="";
+  cats.forEach(c=>{
+    const used=rows.filter(p=>p.cat===c.slug).length;
+    const d=document.createElement("div");d.className="rowitem";
+    d.innerHTML='<b class="grow"></b><span class="note"></span><button class="btn sm" data-a="ren">Renombrar</button><button class="btn sm danger" data-a="del">Eliminar</button>';
+    d.querySelector("b").textContent=c.name;d.querySelector(".note").textContent=used+(used===1?" producto":" productos");
+    d.onclick=async e=>{
+      const a=e.target.dataset.a;if(!a)return;
+      if(a==="ren"){const n=(prompt("Nuevo nombre de la categoría",c.name)||"").trim();if(!n)return;
+        const {error}=await sb.from("categorias").update({name:n}).eq("id",c.id);error?say("#catMsg",error.message,1):loadCats()}
+      if(a==="del"){
+        if(used)return say("#catMsg",`No se puede eliminar «${c.name}»: la usan ${used} producto(s). Cámbiales la categoría primero.`,1);
+        if(!confirm(`¿Eliminar la categoría "${c.name}"?`))return;
+        const {error}=await sb.from("categorias").delete().eq("id",c.id);error?say("#catMsg",error.message,1):loadCats();
+      }
+    };
+    l.appendChild(d);
+  });
+  if(!cats.length)l.innerHTML='<p class="meta">No hay categorías. Agrega la primera.</p>';
+}
+$("#catForm").onsubmit=async e=>{
+  e.preventDefault();
+  const name=$("#cat_name").value.trim();let slug=slugify(name);
+  if(cats.some(c=>c.name.toLowerCase()===name.toLowerCase()))return say("#catMsg","Esa categoría ya existe.",1);
+  while(cats.some(c=>c.slug===slug))slug+="-2";
+  const {error}=await sb.from("categorias").insert({slug,name,sort:cats.length+1});
+  if(error)return say("#catMsg",error.message,1);
+  $("#cat_name").value="";loadCats();
+};
+function fillCat(sel){
+  const el=$("#f_cat");
+  el.innerHTML=cats.map(c=>`<option value="${c.slug}">${c.name.replace(/</g,"&lt;")}</option>`).join("");
+  if(sel&&!cats.some(c=>c.slug===sel))el.insertAdjacentHTML("afterbegin",`<option value="${sel}">${sel}</option>`);
+  el.value=sel||(cats[0]&&cats[0].slug)||"";
+}
+function fillFilters(){
+  const a=$("#fl_cat"),b=$("#fl_col"),va=a.value,vb=b.value;
+  a.innerHTML='<option value="">Todas las categorías</option>'+cats.map(c=>`<option value="${c.slug}">${c.name.replace(/</g,"&lt;")}</option>`).join("");
+  b.innerHTML='<option value="">Todos los colores</option>'+colors.map(c=>`<option value="${c.id}">${c.name.replace(/</g,"&lt;")}</option>`).join("");
+  a.value=va;b.value=vb;
+}
 
 /* ---- colores ---- */
 async function loadColors(){
   const {data,error}=await sb.from("colores").select("*").order("sort").order("id");
   if(error)return say("#colMsg","Falta ejecutar supabase-v2.sql: "+error.message,1);
-  colors=data;say("#colMsg","");
+  colors=data;say("#colMsg","");fillFilters();
   const l=$("#colList");l.innerHTML="";
   colors.forEach(c=>{
     const d=document.createElement("div");d.className="rowitem";
