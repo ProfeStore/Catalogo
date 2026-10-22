@@ -95,7 +95,7 @@ legend{padding:0 6px;color:var(--muted);font-size:.85rem;font-weight:700}
   <main class="wrap">
     <div class="tabs" role="tablist" id="tabs">
       <button class="tab" role="tab" data-t="prod" aria-selected="true">Productos</button>
-      <button class="tab" role="tab" data-t="cat" aria-selected="false">Categorías</button>
+      <button class="tab" role="tab" data-t="cat" aria-selected="false">Categorías y marcas</button>
       <button class="tab" role="tab" data-t="col" aria-selected="false">Colores</button>
       <button class="tab" role="tab" data-t="ig" aria-selected="false">Instagram</button>
       <button class="tab" role="tab" data-t="rev" aria-selected="false">Comentarios <span id="revBadge" class="pill s" hidden></span></button>
@@ -124,6 +124,18 @@ legend{padding:0 6px;color:var(--muted);font-size:.85rem;font-weight:700}
       </div>
       <p class="msg" id="catMsg" role="status"></p>
       <div class="list" id="catList"></div>
+
+      <div class="card" style="margin:28px 0 20px">
+        <h2 style="font-size:1.1rem;margin-bottom:10px">Registrar marca nueva</h2>
+        <form class="row2" id="brandForm">
+          <label>Nombre de la marca<input id="br_name" required maxlength="30" placeholder="Ej: Nike"></label>
+          <label>Logo (imagen)<input type="file" id="br_file" accept="image/*" required></label>
+          <button class="btn primary">Agregar</button>
+        </form>
+        <p class="note" style="margin-top:8px">Las marcas aparecen arriba del catálogo como «Marcas Premium». Al tocar una, el cliente ve solo los productos de esa marca. Usa un logo con fondo transparente o claro. En cada producto eliges su marca.</p>
+      </div>
+      <p class="msg" id="brMsg" role="status"></p>
+      <div class="list" id="brList"></div>
     </section>
 
     <section id="p_col" hidden>
@@ -184,6 +196,7 @@ legend{padding:0 6px;color:var(--muted);font-size:.85rem;font-weight:700}
     <h2 id="fTitle" style="margin-bottom:12px">Producto</h2>
     <div class="grid2">
       <label>Nombre<input id="f_name" required maxlength="80"></label>
+      <label>Marca<select id="f_brand"></select></label>
       <label>Categoría
         <select id="f_cat"></select></label>
       <label>Precio (COP)<input id="f_price" type="number" min="0" step="1000" required></label>
@@ -238,7 +251,7 @@ const sb=supabase.createClient(SB_URL,SB_KEY);
 const $=s=>document.querySelector(s);
 const LANGS={es:"Español",en:"English",pt:"Português",fr:"Français"};
 const OTHER=["en","pt","fr"];
-let cats=[];const catLabel=k=>(cats.find(c=>c.slug===k)||{}).name||k;
+let cats=[],brands=[];const catLabel=k=>(cats.find(c=>c.slug===k)||{}).name||k;
 const money=n=>new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",maximumFractionDigits:0}).format(n);
 let rows=[],editing=null,gal=[],vids=[],uidc=0;
 
@@ -294,7 +307,7 @@ async function load(){
   const {data,error}=await sb.from("productos").select("*").order("sort").order("id");
   if(error){say("#listMsg","No se pudo cargar: "+error.message,1);return}
   rows=data;say("#listMsg","");render();
-  loadCats();loadColors();loadReels();loadSettings();loadReviews();
+  loadCats();loadBrands();loadColors();loadReels();loadSettings();loadReviews();
 }
 function say(sel,t,err){const m=$(sel);m.textContent=t;m.className="msg"+(t?(err?" err":" ok"):"")}
 let rq=0;function render(){cancelAnimationFrame(rq);rq=requestAnimationFrame(renderNow)}
@@ -339,7 +352,7 @@ function openForm(p){
   gal=(p?.images?.length?p.images:(p?.image_url?[{path:p.image_url,color_id:null}]:[])).map(i=>({uid:++uidc,path:i.path,thumb:i.thumb||null,file:null,prev:imgUrl(i.thumb||i.path),color:i.color_id??null,price:i.price??null,name:i.name||""}));
   $("#fTitle").textContent=p?"Editar producto":"Nuevo producto";
   const v=(id,x)=>$("#f_"+id).value=x;
-  v("name",p?.name||"");fillCat(p?.cat);v("price",p?.price??"");v("old",p?.old_price??"");
+  v("name",p?.name||"");fillCat(p?.cat);fillBrand(p?.brand_id);v("price",p?.price??"");v("old",p?.old_price??"");
   v("comfort",p?.comfort||4);v("tag",p?.tag||"");v("sort",p?.sort??0);v("type",p?.type||"sneaker");
   selColors=[...(p?.color_ids||[])];selSizes=p?[...(p.sizes||[])].filter(n=>ALL_SIZES.includes(n)):[...ALL_SIZES];
   drawColors();drawSizes();
@@ -497,7 +510,7 @@ $("#form").onsubmit=async e=>{
     gal.forEach(g=>{if(g.color&&!selColors.includes(g.color))selColors.push(g.color)});
     const hx=selColors.map(id=>colors.find(c=>c.id===id)?.hex).filter(Boolean),dflt=["#1c1c1f","#e5322d","#f4f4f4"];
     const old=$("#f_old").value;
-    const row={name:$("#f_name").value.trim(),cat:$("#f_cat").value,type:$("#f_type").value,price:+$("#f_price").value,
+    const row={name:$("#f_name").value.trim(),cat:$("#f_cat").value,brand_id:$("#f_brand").value?+$("#f_brand").value:null,type:$("#f_type").value,price:+$("#f_price").value,
       old_price:old?+old:null,comfort:Math.min(5,Math.max(1,+$("#f_comfort").value||4)),tag:$("#f_tag").value||null,
       sort:+$("#f_sort").value||0,colors:[0,1,2].map(i=>hx[i]||dflt[i]),color_ids:selColors,sizes:selSizes,seasonal:$("#f_seasonal").checked,
       active:$("#f_active").checked,image_url:images[0]?.path||null,images,videos,video_url:videos[0]?.url||null,description,features};
@@ -563,6 +576,60 @@ function fillFilters(){
   a.innerHTML='<option value="">Todas las categorías</option>'+cats.map(c=>`<option value="${c.slug}">${c.name.replace(/</g,"&lt;")}</option>`).join("");
   b.innerHTML='<option value="">Todos los colores</option>'+colors.map(c=>`<option value="${c.id}">${c.name.replace(/</g,"&lt;")}</option>`).join("");
   a.value=va;b.value=vb;
+}
+
+/* ---- marcas ---- */
+async function loadBrands(){
+  const {data,error}=await sb.from("marcas").select("*").order("sort").order("id");
+  if(error)return say("#brMsg","Falta ejecutar supabase-v6.sql: "+error.message,1);
+  brands=data;say("#brMsg","");
+  const l=$("#brList");l.innerHTML="";
+  brands.forEach(b=>{
+    const used=rows.filter(p=>p.brand_id===b.id).length;
+    const d=document.createElement("div");d.className="rowitem";
+    d.innerHTML='<img class="rv-img" alt="" style="background:#ddd;object-fit:contain"><b class="grow"></b><span class="note"></span><button class="btn sm" data-a="ren">Renombrar</button><label class="btn sm" style="cursor:pointer;display:inline-flex;align-items:center">Cambiar logo<input type="file" accept="image/*" hidden></label><button class="btn sm danger" data-a="del">Eliminar</button>';
+    const im=d.querySelector("img");if(b.image_url){im.loading="lazy";im.src=imgUrl(b.image_url)}else im.hidden=true;
+    d.querySelector("b").textContent=b.name;d.querySelector(".note").textContent=used+(used===1?" producto":" productos");
+    d.querySelector('input[type=file]').onchange=async e=>{
+      const f=e.target.files[0];if(!f)return;
+      try{say("#brMsg","Subiendo logo…");const path=await uploadLogo(f);
+        const {error}=await sb.from("marcas").update({image_url:path}).eq("id",b.id);if(error)throw error;
+        await dropImage(b.image_url);loadBrands()}catch(err){say("#brMsg",err.message||String(err),1)}
+    };
+    d.onclick=async e=>{
+      const a=e.target.dataset.a;if(!a)return;
+      if(a==="ren"){const n=(prompt("Nuevo nombre de la marca",b.name)||"").trim();if(!n)return;
+        const {error}=await sb.from("marcas").update({name:n}).eq("id",b.id);error?say("#brMsg",error.message,1):loadBrands()}
+      if(a==="del"){
+        if(!confirm(`¿Eliminar la marca "${b.name}"?`+(used?` Se quitará de ${used} producto(s).`:"")))return;
+        if(used){const r=await sb.from("productos").update({brand_id:null}).eq("brand_id",b.id);if(r.error)return say("#brMsg",r.error.message,1)}
+        const {error}=await sb.from("marcas").delete().eq("id",b.id);if(error)return say("#brMsg",error.message,1);
+        await dropImage(b.image_url);load();
+      }
+    };
+    l.appendChild(d);
+  });
+  if(!brands.length)l.innerHTML='<p class="meta">Aún no hay marcas.</p>';
+  fillBrand($("#f_brand").value?+$("#f_brand").value:null);
+}
+async function uploadLogo(file){
+  const blob=await shrink(file,400,.9);
+  return uploadBlob(`${GH_DIR}/brand-${Date.now()}-${Math.random().toString(36).slice(2,8)}.webp`,blob);
+}
+$("#brandForm").onsubmit=async e=>{
+  e.preventDefault();const btn=e.submitter||$("#brandForm button");btn.disabled=true;
+  try{
+    const name=$("#br_name").value.trim(),f=$("#br_file").files[0];
+    say("#brMsg","Subiendo logo…");const path=await uploadLogo(f);
+    const {error}=await sb.from("marcas").insert({name,image_url:path,sort:brands.length+1});if(error)throw error;
+    $("#br_name").value="";$("#br_file").value="";loadBrands();
+  }catch(err){say("#brMsg","Error: "+(err.message||err),1)}
+  btn.disabled=false;
+};
+function fillBrand(sel){
+  const el=$("#f_brand");
+  el.innerHTML='<option value="">Sin marca</option>'+brands.map(b=>`<option value="${b.id}">${b.name.replace(/</g,"&lt;")}</option>`).join("");
+  el.value=sel||"";
 }
 
 /* ---- colores ---- */
