@@ -223,7 +223,7 @@ html,body{overflow-x:clip}
 .season{padding-bottom:8px}
 .season .eyebrow{margin-bottom:8px}
 .season[hidden]{display:none}
-.card-img img.photo{width:100%;height:100%;object-fit:cover;border-radius:12px;display:block}
+.card-img img.photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:0;display:block}
 .card-img:has(img.photo){padding:0}
 
 /* CATALOG */
@@ -252,7 +252,7 @@ html,body{overflow-x:clip}
 @media(min-width:1040px){.grid{grid-template-columns:repeat(4,1fr)}}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:20px;overflow:hidden;display:flex;flex-direction:column;transition:transform .3s var(--ease),box-shadow .3s}
 .card:hover{transform:translateY(-4px);box-shadow:var(--shadow)}
-.card-img{position:relative;background:var(--surface-2);aspect-ratio:1/.82;display:grid;place-items:center;padding:14px;border:0;width:100%}
+.card-img{position:relative;background:var(--surface-2);aspect-ratio:4/5;overflow:hidden;display:grid;place-items:center;padding:14px;border:0;width:100%}
 .card-img svg{width:100%;height:auto}
 .tag[data-t="limited"]{background:#111;color:#fff}
 .tag[data-t="exclusive"]{background:linear-gradient(90deg,#b8860b,#e9c75f);color:#111}
@@ -262,6 +262,7 @@ html,body{overflow-x:clip}
 .fav[aria-pressed="true"]{color:oklch(58% .22 25)}
 .fav[aria-pressed="true"] svg{fill:currentColor}
 .card-body{padding:12px 14px 16px;display:flex;flex-direction:column;gap:4px;flex:1}
+.card-body .price{margin-top:auto;padding-top:6px}
 .cat{font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-text)}
 .card h3{font-size:1.1rem}
 .price{font-weight:800;font-size:1.1rem;margin-top:auto;padding-top:6px}
