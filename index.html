@@ -165,6 +165,11 @@ html,body{overflow-x:clip}
 .lb-body img{max-width:100%;max-height:calc(100vh - 90px);object-fit:contain;border-radius:8px;display:block}
 .lb-body video{max-width:100%;max-height:calc(100vh - 90px);border-radius:8px;background:#000;display:block}
 .ig-lb{width:min(92vw,420px)!important}
+.v-embed{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:12px;overflow:hidden}
+.v-embed.tall{width:min(100%,340px);aspect-ratio:9/16;margin:0 auto}
+.v-embed iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.v-embed.lbv{width:min(92vw,900px)}
+.v-embed.lbv.tall{width:auto;height:calc(100vh - 110px);max-width:92vw}
 .m-main{position:relative}
 .m-expand{position:absolute;right:8px;top:8px;width:40px;height:40px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:1.2rem}
 .lb-body svg{width:min(92vw,720px);height:auto;background:#fff;border-radius:16px;padding:16px}
@@ -971,8 +976,15 @@ function updateCm(){
   const c=String(CM[s]).replace(".",state.lang==="en"?".":",");
   $("#cmTxt").textContent=t("cmTxt").replace("{s}",s).replace("{c}",c);
 }
-const igOf=u=>(String(u).match(/instagram\.com\/(?:[^\/]+\/)?(?:reel|reels|p|tv)\/([\w-]+)/)||[])[1];
-function lbItems(p){return p.media&&p.media.length?p.media.map(m=>m.type==="img"?m.src:{video:m.src,ig:igOf(m.src)}):[{svg:shoe(p.type,p.c,"lb"+p.id)}]}
+function vidInfo(u){
+  u=String(u||"");let m;
+  if(m=u.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:[^#]*&)?v=|shorts\/|embed\/|live\/))([\w-]{11})/))return{name:"YouTube",url:`https://www.youtube-nocookie.com/embed/${m[1]}?playsinline=1&rel=0&modestbranding=1`,tall:/\/shorts\//.test(u)};
+  if(m=u.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:[^#]*&)?id=)([\w-]+)/))return{name:"Google Drive",url:`https://drive.google.com/file/d/${m[1]}/preview`,tall:false};
+  if(m=u.match(/vimeo\.com\/(?:video\/)?(\d+)/))return{name:"Vimeo",url:`https://player.vimeo.com/video/${m[1]}`,tall:false};
+  if(m=u.match(/instagram\.com\/(?:[^\/]+\/)?(?:reel|reels|p|tv)\/([\w-]+)/))return{name:"Instagram",url:`https://www.instagram.com/reel/${m[1]}/embed`,ig:true,tall:false};
+  return null;
+}
+function lbItems(p){return p.media&&p.media.length?p.media.map(m=>m.type==="img"?m.src:{video:m.src,info:vidInfo(m.src)}):[{svg:shoe(p.type,p.c,"lb"+p.id)}]}
 function curPrice(p){
   const im=p.media&&p.media[state.gi];if(im&&im.price)return im.price;
   if(state.color){const x=(p.media||[]).find(i=>i.type==="img"&&i.color===state.color&&i.price);if(x)return x.price}
@@ -985,11 +997,11 @@ function drawGallery(p){
   const md=p.media||[],cur=md[state.gi];
   if(cur&&cur.type==="vid"){
     m.classList.add("is-video");
-    const ig=igOf(cur.src);
-    if(ig){
-      /* Reel de Instagram: solo se carga al tocar la miniatura, recortado para ver solo el video */
-      const box=document.createElement("div");box.className="ig-crop";
-      const f=document.createElement("iframe");f.src=`https://www.instagram.com/reel/${ig}/embed`;f.setAttribute("scrolling","no");f.setAttribute("allowfullscreen","");f.title="Video";f.loading="lazy";
+    const vi=vidInfo(cur.src);
+    if(vi){
+      /* Enlace de YouTube / Drive / Vimeo: el video se carga solo al tocar la miniatura (no pesa en la página) */
+      const box=document.createElement("div");box.className=vi.ig?"ig-crop":"v-embed"+(vi.tall?" tall":"");
+      const f=document.createElement("iframe");f.src=vi.url;f.title="Video";f.setAttribute("allow","autoplay; fullscreen; picture-in-picture");f.setAttribute("allowfullscreen","");if(vi.ig)f.setAttribute("scrolling","no");
       box.appendChild(f);m.appendChild(box);
     }else{
       const v=document.createElement("video");v.src=cur.src;v.controls=true;v.playsInline=true;v.preload="none";
@@ -1042,9 +1054,9 @@ function drawLb(){
   b.innerHTML="";
   if(typeof it==="string")b.innerHTML=`<img src="${it}" alt="">`;
   else if(it.svg)b.innerHTML=it.svg;
-  else if(it.ig){
-    const box=document.createElement("div");box.className="ig-crop ig-lb";
-    const f=document.createElement("iframe");f.src=`https://www.instagram.com/reel/${it.ig}/embed`;f.setAttribute("scrolling","no");f.setAttribute("allowfullscreen","");f.title="Video";
+  else if(it.info){
+    const box=document.createElement("div");box.className=it.info.ig?"ig-crop ig-lb":"v-embed lbv"+(it.info.tall?" tall":"");
+    const f=document.createElement("iframe");f.src=it.info.url;f.title="Video";f.setAttribute("allow","autoplay; fullscreen; picture-in-picture");f.setAttribute("allowfullscreen","");
     box.appendChild(f);b.appendChild(box);
   }else{
     const v=document.createElement("video");v.src=it.video;v.controls=true;v.autoplay=true;v.playsInline=true;

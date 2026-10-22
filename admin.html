@@ -198,9 +198,9 @@ legend{padding:0 6px;color:var(--muted);font-size:.85rem;font-weight:700}
       <div id="v_list" class="gal"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <label class="btn sm" style="display:inline-flex;align-items:center;cursor:pointer">+ Subir video<input type="file" id="v_file" accept="video/mp4,video/webm,video/quicktime" hidden></label>
-        <button type="button" class="btn sm" id="v_link">+ Pegar enlace (.mp4 o Instagram)</button>
+        <button type="button" class="btn sm" id="v_link">+ Pegar enlace del video</button>
       </div>
-      <p class="note"><b>Video limpio (solo el video):</b> sube el MP4 con «Subir video» (máx. 50 MB, se guarda en Supabase) o pega un enlace directo a un .mp4. En cada video elige «Después de la foto N»: así el video aparece justo después de esa foto/referencia (por ejemplo, la foto del color negro). Si pegas un enlace de Instagram el video se ve, pero Instagram siempre muestra su botón «Ver en Instagram» encima.</p>
+      <p class="note"><b>Cómo ver el video sin subirlo a la tienda:</b> pega su enlace. Funcionan <b>YouTube</b> (súbelo como «No listado»; los Shorts también), <b>Google Drive</b> (compartido con «cualquier persona con el enlace»), <b>Vimeo</b> o un enlace directo a un .mp4. El video no pesa en el catálogo: solo se carga cuando el cliente toca su miniatura. En cada video elige «Después de la foto N» para ubicarlo. Los enlaces de Instagram ya no se aceptan porque Instagram no deja reproducirlos fuera de su app. También puedes subir un MP4 (máx. 50 MB) con «+ Subir video».</p>
     </fieldset>
     <div style="display:flex;gap:24px;margin-top:14px;flex-wrap:wrap">
       <label class="chk"><input type="checkbox" id="f_seasonal"> De temporada</label>
@@ -388,8 +388,15 @@ function drawGal(){
     w.appendChild(d);
   });
 }
-const igCodeV=u=>(String(u).match(/instagram\.com\/(?:[^\/]+\/)?(?:reel|reels|p|tv)\/([\w-]+)/)||[])[1];
-const vName=v=>v.file?"Archivo nuevo: "+v.file.name:(igCodeV(v.url)?"Instagram: "+v.url:v.url.split("/").pop());
+function vidInfo(u){
+  u=String(u||"");let m;
+  if(m=u.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:[^#]*&)?v=|shorts\/|embed\/|live\/))([\w-]{11})/))return{name:"YouTube",url:`https://www.youtube-nocookie.com/embed/${m[1]}?playsinline=1&rel=0&modestbranding=1`,tall:/\/shorts\//.test(u)};
+  if(m=u.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:[^#]*&)?id=)([\w-]+)/))return{name:"Google Drive",url:`https://drive.google.com/file/d/${m[1]}/preview`,tall:false};
+  if(m=u.match(/vimeo\.com\/(?:video\/)?(\d+)/))return{name:"Vimeo",url:`https://player.vimeo.com/video/${m[1]}`,tall:false};
+  if(m=u.match(/instagram\.com\/(?:[^\/]+\/)?(?:reel|reels|p|tv)\/([\w-]+)/))return{name:"Instagram",url:`https://www.instagram.com/reel/${m[1]}/embed`,ig:true,tall:false};
+  return null;
+}
+const vName=v=>v.file?"Archivo nuevo: "+v.file.name:((vidInfo(v.url)||{}).name?vidInfo(v.url).name+": "+v.url:v.url.split("/").pop());
 function drawVids(){
   const w=$("#v_list");w.innerHTML="";
   vids.forEach((v,i)=>{
@@ -412,11 +419,11 @@ $("#v_file").onchange=e=>{
   vids.push({url:null,file:f,prev:URL.createObjectURL(f),color:null,afterUid:null});drawVids();say("#fMsg","");
 };
 $("#v_link").onclick=()=>{
-  const u=(prompt("Pega el enlace directo del video (.mp4, .webm, .mov) o el enlace de un reel de Instagram","")||"").trim();if(!u)return;
-  const code=igCodeV(u);
-  if(code){vids.push({url:`https://www.instagram.com/reel/${code}/`,file:null,prev:u,color:null,afterUid:null});drawVids();return}
-  if(/instagram\.com|instagr\.am/i.test(u))return alert("Ese enlace de Instagram no parece de un reel o publicación.");
-  if(!/^https:\/\/.+\.(mp4|webm|mov)(\?.*)?$/i.test(u))return alert("Ese no parece un enlace directo a un video (.mp4, .webm o .mov).");
+  const u=(prompt("Pega el enlace del video: YouTube (puede ser «no listado»), Google Drive (compartido con «cualquier persona con el enlace»), Vimeo o un enlace directo a .mp4","")||"").trim();if(!u)return;
+  const vi=vidInfo(u);
+  if(vi&&vi.ig)return alert("Los videos de Instagram no se reproducen desde la tienda (Instagram solo muestra «Ver en Instagram»). Sube el video a YouTube (como «no listado») o a Google Drive y pega ese enlace.");
+  if(vi){vids.push({url:u,file:null,prev:u,color:null,afterUid:null});drawVids();return}
+  if(!/^https:\/\/.+\.(mp4|webm|mov)(\?.*)?$/i.test(u))return alert("Enlace no reconocido. Usa YouTube, Google Drive, Vimeo o un enlace directo a un video (.mp4, .webm o .mov).");
   vids.push({url:u,file:null,prev:u,color:null,afterUid:null});drawVids();
 };
 async function uploadVideo(file){
