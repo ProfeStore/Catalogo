@@ -76,6 +76,7 @@ legend{padding:0 6px;color:var(--muted);font-size:.85rem;font-weight:700}
 .gal-i img{width:64px;height:64px;object-fit:cover;border-radius:8px;background:#000}
 .gal-i .ac{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .gal-i select{min-height:36px;padding:4px 8px;width:auto;flex:1;min-width:120px}
+.gal-i input.gn{width:100%;min-height:36px;padding:4px 8px;margin:4px 0 6px}
 .gal-i input.gp{min-height:36px;padding:4px 8px;width:150px}
 .pill.ok{background:#14532d;border-color:#14532d}.pill.warn{background:#7c4a03;border-color:#7c4a03}
 .rv-img{width:72px;height:72px;object-fit:cover;border-radius:8px}
@@ -208,7 +209,7 @@ legend{padding:0 6px;color:var(--muted);font-size:.85rem;font-weight:700}
     </div>
     <fieldset><legend>Fotos del producto (la primera es la principal)</legend>
       <div id="f_gal" class="gal"></div>
-      <p class="note">Cada foto puede ser de un color distinto de la misma referencia, con su propio precio si cambia (déjalo vacío para usar el precio del producto). Si subes otra foto del mismo color, queda como foto adicional. Al elegir un color o pasar de foto, el cliente ve el precio de esa foto.</p>
+      <p class="note">Cada foto puede ser de un color distinto de la misma referencia, con su propio nombre y precio si cambian (déjalos vacíos para usar los del producto). El cliente ve el nombre y el precio de la foto que está mirando. Si subes otra foto del mismo color, queda como foto adicional. Al elegir un color o pasar de foto, el cliente ve el precio de esa foto.</p>
       <label class="btn sm" style="justify-self:start;display:inline-flex;align-items:center;cursor:pointer">+ Agregar fotos<input type="file" id="f_file" accept="image/*" multiple hidden></label>
     </fieldset>
     <fieldset><legend>Descripción (escríbela en español; se traduce sola a inglés, portugués y francés al guardar)</legend>
@@ -316,7 +317,7 @@ async function remove(p){
 /* ---- formulario ---- */
 function openForm(p){
   editing=p||null;
-  gal=(p?.images?.length?p.images:(p?.image_url?[{path:p.image_url,color_id:null}]:[])).map(i=>({uid:++uidc,path:i.path,file:null,prev:imgUrl(i.path),color:i.color_id??null,price:i.price??null}));
+  gal=(p?.images?.length?p.images:(p?.image_url?[{path:p.image_url,color_id:null}]:[])).map(i=>({uid:++uidc,path:i.path,file:null,prev:imgUrl(i.path),color:i.color_id??null,price:i.price??null,name:i.name||""}));
   $("#fTitle").textContent=p?"Editar producto":"Nuevo producto";
   const v=(id,x)=>$("#f_"+id).value=x;
   v("name",p?.name||"");fillCat(p?.cat);v("price",p?.price??"");v("old",p?.old_price??"");
@@ -375,12 +376,13 @@ function drawGal(){
   const w=$("#f_gal");w.innerHTML="";
   gal.forEach((g,i)=>{
     const d=document.createElement("div");d.className="gal-i";
-    d.innerHTML='<img alt=""><div><div class="meta"></div><div class="ac"><select aria-label="Color de la foto"></select><input class="gp" type="number" min="0" step="1000" placeholder="Precio de esta foto" aria-label="Precio de esta foto (opcional)"><button type="button" class="btn sm" data-a="first">Hacer principal</button><button type="button" class="btn sm danger" data-a="del">Quitar</button></div></div>';
+    d.innerHTML='<img alt=""><div><div class="meta"></div><input class="gn" type="text" maxlength="80" placeholder="Nombre de esta referencia (opcional, reemplaza el nombre del producto)" aria-label="Nombre de esta referencia"><div class="ac"><select aria-label="Color de la foto"></select><input class="gp" type="number" min="0" step="1000" placeholder="Precio de esta foto" aria-label="Precio de esta foto (opcional)"><button type="button" class="btn sm" data-a="first">Hacer principal</button><button type="button" class="btn sm danger" data-a="del">Quitar</button></div></div>';
     d.querySelector("img").src=g.prev;
     d.querySelector(".meta").textContent=i===0?"Foto principal":"Foto "+(i+1);
     const sel=d.querySelector("select");
     sel.innerHTML='<option value="">Sin color asignado</option>'+colors.map(c=>`<option value="${c.id}">${c.name.replace(/</g,"&lt;")}</option>`).join("");
-    sel.value=g.color??"";sel.onchange=()=>{g.color=sel.value?+sel.value:null;drawVids()};
+    sel.value=g.color??"";sel.onchange=()=>{g.color=sel.value?+sel.value:null;if(g.color&&!selColors.includes(g.color)){selColors.push(g.color);drawColors()}drawVids()};
+    const gn=d.querySelector(".gn");gn.value=g.name||"";gn.oninput=()=>{g.name=gn.value.trim()};
     const gp=d.querySelector(".gp");gp.value=g.price??"";gp.oninput=()=>{g.price=gp.value?+gp.value:null};
     d.querySelector('[data-a=first]').hidden=i===0;
     d.querySelector('[data-a=first]').onclick=()=>{gal.unshift(...gal.splice(i,1));drawGal()};
@@ -464,13 +466,14 @@ $("#form").onsubmit=async e=>{
     const images=[];
     for(const [i,g] of gal.entries()){
       if(g.file){say("#fMsg",`Subiendo foto ${i+1} de ${gal.length} a GitHub…`);g.path=await uploadImage(await shrink(g.file));g.file=null}
-      images.push({path:g.path,color_id:g.color,price:g.price||null});
+      images.push({path:g.path,color_id:g.color,price:g.price||null,name:g.name||null});
     }
     for(const [i,v] of vids.entries())if(v.file){say("#fMsg",`Subiendo video ${i+1} de ${vids.length}…`);v.url=await uploadVideo(v.file);v.file=null}
     const videos=vids.map(v=>{const g=gal.find(x=>x.uid===v.afterUid);return {url:v.url,color_id:g?g.color:v.color,after:g?g.path:null}});
     const desc=$("#f_desc").value.trim(),feats=$("#f_feat").value.split("\n").map(x=>x.trim()).filter(Boolean);
     say("#fMsg","Traduciendo descripción…");
     const {description,features,failed}=await buildTexts(desc,feats,editing);
+    gal.forEach(g=>{if(g.color&&!selColors.includes(g.color))selColors.push(g.color)});
     const hx=selColors.map(id=>colors.find(c=>c.id===id)?.hex).filter(Boolean),dflt=["#1c1c1f","#e5322d","#f4f4f4"];
     const old=$("#f_old").value;
     const row={name:$("#f_name").value.trim(),cat:$("#f_cat").value,type:$("#f_type").value,price:+$("#f_price").value,

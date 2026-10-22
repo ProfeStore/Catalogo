@@ -714,21 +714,21 @@ const LANGS=["es","en","pt","fr"];
 function buildMedia(imgs,vids){
   const media=[],used=new Set();
   imgs.forEach((im,i)=>{
-    media.push({type:"img",src:im.src,color:im.color,price:im.price});
+    media.push({type:"img",src:im.src,color:im.color,price:im.price,name:im.name});
     const lastOfColor=!!im.color&&!imgs.slice(i+1).some(x=>x.color===im.color);
     vids.forEach((v,j)=>{
       if(used.has(j))return;
-      if(v.after?v.after===im.path:(v.color&&v.color===im.color&&lastOfColor)){used.add(j);media.push({type:"vid",src:v.src,color:v.color??im.color,price:im.price})}
+      if(v.after?v.after===im.path:(v.color&&v.color===im.color&&lastOfColor)){used.add(j);media.push({type:"vid",src:v.src,color:v.color??im.color,price:im.price,name:im.name})}
     });
   });
-  vids.forEach((v,j)=>{if(!used.has(j))media.push({type:"vid",src:v.src,color:v.color,price:null})});
+  vids.forEach((v,j)=>{if(!used.has(j))media.push({type:"vid",src:v.src,color:v.color,price:null,name:""})});
   return media;
 }
 function fromRow(r){
   const d=r.description||{},f=r.features||{},dd={},ff={};
   LANGS.forEach(l=>{dd[l]=d[l]||d.es||"";ff[l]=(f[l]&&f[l].length?f[l]:f.es)||[]});
   const c=Array.isArray(r.colors)&&r.colors.length>=3?r.colors:["#1c1c1f","#e5322d","#f4f4f4"];
-  const o={id:r.id,name:r.name,cat:r.cat,type:r.type||"sneaker",price:r.price,old:r.old_price||undefined,c,comfort:r.comfort||4,tag:r.tag||undefined,seasonal:!!r.seasonal,colorIds:r.color_ids||[],sizes:Array.isArray(r.sizes)?r.sizes:ALL_SIZES,imgs:(Array.isArray(r.images)&&r.images.length?r.images:(r.image_url?[{path:r.image_url,color_id:null}]:[])).map(i=>({path:i.path,src:imgSrc(i.path),color:i.color_id??null,price:i.price||null})),img:imgSrc((Array.isArray(r.images)&&r.images[0]?.path)||r.image_url),videos:(Array.isArray(r.videos)&&r.videos.length?r.videos:(r.video_url?[{url:r.video_url,color_id:null}]:[])).map(v=>({src:imgSrc(v.url),color:v.color_id??null,after:v.after||null})),d:dd,f:ff};
+  const o={id:r.id,name:r.name,cat:r.cat,type:r.type||"sneaker",price:r.price,old:r.old_price||undefined,c,comfort:r.comfort||4,tag:r.tag||undefined,seasonal:!!r.seasonal,colorIds:r.color_ids||[],sizes:Array.isArray(r.sizes)?r.sizes:ALL_SIZES,imgs:(Array.isArray(r.images)&&r.images.length?r.images:(r.image_url?[{path:r.image_url,color_id:null}]:[])).map(i=>({path:i.path,src:imgSrc(i.path),color:i.color_id??null,price:i.price||null,name:i.name||""})),img:imgSrc((Array.isArray(r.images)&&r.images[0]?.path)||r.image_url),videos:(Array.isArray(r.videos)&&r.videos.length?r.videos:(r.video_url?[{url:r.video_url,color_id:null}]:[])).map(v=>({src:imgSrc(v.url),color:v.color_id??null,after:v.after||null})),d:dd,f:ff};
   o.media=buildMedia(o.imgs,o.videos);return o;
 }
 const sbGet=async q=>{const r=await fetch(`${SB_URL}/rest/v1/${q}`,{headers:{apikey:SB_KEY,Authorization:"Bearer "+SB_KEY}});if(!r.ok)throw new Error(r.status);return r.json()};
@@ -846,7 +846,7 @@ function renderChips(){
 function list(){
   const q=state.q.trim().toLowerCase(),filtering=!!(q||state.fColor||state.fSize||state.fMin||state.fMax);
   let l=P.filter(p=>state.cat==="favs"?state.favs.includes(p.id):(filtering||!p.seasonal)&&(state.cat==="all"||p.cat===state.cat));
-  if(q)l=l.filter(p=>(p.name+" "+p.d[state.lang]+" "+catName(p.cat)).toLowerCase().includes(q));
+  if(q)l=l.filter(p=>(p.name+" "+(p.media||[]).map(m=>m.name||"").join(" ")+" "+p.d[state.lang]+" "+catName(p.cat)).toLowerCase().includes(q));
   if(state.fColor)l=l.filter(p=>(p.colorIds||[]).includes(state.fColor));
   if(state.fSize)l=l.filter(p=>p.sizes.includes(state.fSize));
   if(state.fMin)l=l.filter(p=>p.price>=+state.fMin);
@@ -938,7 +938,7 @@ function openModal(p){
 function fillModal(){
   const p=state.current;if(!p)return;
   $("#mCat").textContent=catName(p.cat);
-  $("#mName").textContent=p.name;
+  drawName(p);
   drawPrice(p);
   $("#mDesc").textContent=p.d[state.lang];
   $("#mFeat").innerHTML="";
@@ -990,6 +990,12 @@ function curPrice(p){
   if(state.color){const x=(p.media||[]).find(i=>i.type==="img"&&i.color===state.color&&i.price);if(x)return x.price}
   return p.price;
 }
+function curName(p){
+  const im=p.media&&p.media[state.gi];if(im&&im.name)return im.name;
+  if(state.color){const x=(p.media||[]).find(i=>i.type==="img"&&i.color===state.color&&i.name);if(x)return x.name}
+  return p.name;
+}
+function drawName(p){$("#mName").textContent=curName(p)}
 function drawPrice(p){const v=curPrice(p);$("#mPrice").innerHTML=fmt(v)+(p.old&&v===p.price?`<span class="old">${fmt(p.old)}</span>`:"")}
 function drawGallery(p){
   const w=$("#mImg");w.innerHTML="";
@@ -1015,7 +1021,7 @@ function drawGallery(p){
     m.innerHTML=cur?`<img class="photo" src="${cur.src}" alt="" decoding="async">`:shoe(p.type,p.c,"m"+p.id);
     m.onclick=()=>openLb(lbItems(p),state.gi,i=>{state.gi=i;drawGallery(p)});
   }
-  w.appendChild(m);drawPrice(p);
+  w.appendChild(m);drawPrice(p);drawName(p);
   if(md.length>1){
     const th=document.createElement("div");th.className="thumbs";
     md.forEach((x,i)=>{
@@ -1079,7 +1085,7 @@ document.addEventListener("keydown",e=>{
 /* ---------- Carrito ---------- */
 let cart=(store.get("cart",[])||[]).filter(i=>i&&i.id&&i.size&&i.qty>0);
 const priceOf=i=>i.price;
-const nameOf=i=>(P.find(p=>p.id===i.id)||i).name;
+const nameOf=i=>i.name;
 function saveCart(){store.set("cart",cart);renderCart()}
 let toastT;
 function toast(m){const e=$("#toast");e.textContent=m;e.classList.add("show");clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove("show"),1800)}
@@ -1093,7 +1099,7 @@ function checkPick(p){
 $("#mAdd").onclick=()=>{
   const p=state.current;if(!p)return;
   const picked=checkPick(p);if(!p.sizes.length||!state.size||(colorsOf(p).length&&!state.color))return;
-  const k=i=>i.id+"|"+i.size+"|"+(i.color||0)+"|"+i.price,n={id:p.id,name:p.name,price:curPrice(p),size:state.size,color:picked?picked.id:0,colorName:picked?picked.name:"",qty:1};
+  const k=i=>i.id+"|"+i.size+"|"+(i.color||0)+"|"+i.price+"|"+i.name,n={id:p.id,name:curName(p),price:curPrice(p),size:state.size,color:picked?picked.id:0,colorName:picked?picked.name:"",qty:1};
   const ex=cart.find(i=>k(i)===k(n));
   ex?ex.qty=Math.min(10,ex.qty+1):cart.push(n);
   saveCart();toast(t("cartAdded"));
@@ -1165,7 +1171,7 @@ $("#mWa").addEventListener("click",e=>{
   if(!state.size){e.preventDefault();$("#warn").textContent=t("needSize");return}
   if(cl.length&&!state.color){e.preventDefault();$("#warn").textContent=t("needColor");return}
   const col=cl.find(c=>c.id===state.color);
-  const msg=t("waMsg")(p.name,state.size,fmt(curPrice(p)))+(col?` (${t("colorWord")}: ${col.name})`:"");
+  const msg=t("waMsg")(curName(p),state.size,fmt(curPrice(p)))+(col?` (${t("colorWord")}: ${col.name})`:"");
   e.preventDefault();askShip(sh=>openWa(msg+"\n"+shipLine(sh)));
 });
 
