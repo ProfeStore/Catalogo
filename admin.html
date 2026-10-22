@@ -159,6 +159,12 @@ legend{padding:0 6px;color:var(--muted);font-size:.85rem;font-weight:700}
     </section>
 
     <section id="p_set" hidden>
+      <div class="card" style="margin:20px 0;max-width:520px;display:grid;gap:10px">
+        <h2 style="font-size:1.1rem">Optimizar fotos existentes</h2>
+        <p class="note">Crea miniaturas livianas de las fotos que ya subiste (las nuevas ya las generan solas). Hace que el catálogo y este panel carguen mucho más rápido. Puede tardar un rato; no cierres la página.</p>
+        <button class="btn" id="optBtn" type="button" style="justify-self:start">Optimizar fotos existentes</button>
+        <p class="msg" id="optMsg" role="status"></p>
+      </div>
       <form class="card" id="setForm" style="margin:20px 0;display:grid;gap:12px;max-width:520px">
         <h2 style="font-size:1.1rem">Ajustes de la tienda</h2>
         <label>Usuario de Instagram (sin @)<input id="set_ig" placeholder="elprofestore"></label>
@@ -240,7 +246,12 @@ const ALL_SIZES=[35,36,37,38,39,40,41,42];
 let colors=[],reels=[],selColors=[],selSizes=[];
 /* ---- GitHub: aquí viven las fotos (carpeta images/ del repo) ---- */
 const GH_OWNER="ProfeStore",GH_REPO="Catalogo",GH_DIR="images";
-const imgUrl=p=>!p?"":/^https?:/.test(p)?p:`https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/HEAD/${p}`;
+/* Las fotos salen del CDN (rápido y con caché); si aún no lo tiene, cae al enlace directo de GitHub */
+const CDN="https://cdn.jsdelivr.net/gh/ProfeStore/Catalogo/",RAWB="https://raw.githubusercontent.com/ProfeStore/Catalogo/HEAD/";
+document.addEventListener("error",e=>{const t=e.target;if(t&&t.tagName==="IMG"&&!t.dataset.fb&&t.src.startsWith(CDN)){t.dataset.fb=1;t.src=RAWB+t.src.slice(CDN.length)}},true);
+const imgUrl=p=>!p?"":/^https?:/.test(p)?p:CDN+p;
+const rawUrl=p=>!p?"":/^https?:/.test(p)?p:RAWB+p;
+const purge=p=>fetch("https://purge.jsdelivr.net/gh/ProfeStore/Catalogo/"+p,{mode:"no-cors"}).catch(()=>{});
 /* El token NO va en el código (el repo es público y GitHub lo revocaría): se pide una vez y queda en este navegador. */
 const tok={get(){try{return localStorage.getItem("gh_token")||""}catch(e){return ""}},set(v){try{localStorage.setItem("gh_token",v)}catch(e){}}};
 function askToken(force){
@@ -256,11 +267,18 @@ async function gh(path,opt={}){
   return r;
 }
 const b64=blob=>new Promise(ok=>{const f=new FileReader();f.onload=()=>ok(f.result.split(",")[1]);f.readAsDataURL(blob)});
-async function uploadImage(blob){
-  const path=`${GH_DIR}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.webp`;
+async function uploadBlob(path,blob){
   const r=await gh(path,{method:"PUT",body:JSON.stringify({message:"Foto de producto (admin)",content:await b64(blob)})});
-  if(!r.ok)throw new Error("No se pudo subir la foto a GitHub ("+r.status+")");
-  return path;
+  if(!r.ok&&r.status!==422)throw new Error("No se pudo subir la foto a GitHub ("+r.status+")");
+  purge(path);return path;
+}
+/* Sube la foto grande (1000 px) y una miniatura (480 px) para que las tarjetas carguen rápido */
+async function uploadPair(file){
+  const base=`${GH_DIR}/${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+  const [big,small]=await Promise.all([shrink(file,1000,.82),shrink(file,480,.72)]);
+  const path=await uploadBlob(base+".webp",big);
+  const thumb=await uploadBlob(base+"-s.webp",small);
+  return {path,thumb};
 }
 async function dropImage(p){
   if(!p||/^https?:/.test(p))return;
@@ -279,7 +297,8 @@ async function load(){
   loadCats();loadColors();loadReels();loadSettings();loadReviews();
 }
 function say(sel,t,err){const m=$(sel);m.textContent=t;m.className="msg"+(t?(err?" err":" ok"):"")}
-function render(){
+let rq=0;function render(){cancelAnimationFrame(rq);rq=requestAnimationFrame(renderNow)}
+function renderNow(){
   const q=$("#filter").value.trim().toLowerCase(),l=$("#list");l.innerHTML="";
   const fc=$("#fl_cat").value,fk=$("#fl_col").value;
   rows.filter(p=>(!q||p.name.toLowerCase().includes(q))&&(!fc||p.cat===fc)&&(!fk||(p.color_ids||[]).includes(+fk))).forEach(p=>{
@@ -287,7 +306,7 @@ function render(){
     d.innerHTML=`<div class="thumb"></div><div><h3></h3><div class="meta"></div></div>
       <div class="acts"><button class="btn sm" data-a="edit">Editar</button><button class="btn sm" data-a="season"></button><button class="btn sm" data-a="vis"></button><button class="btn sm danger" data-a="del">Eliminar</button></div>`;
     const th=d.querySelector(".thumb");
-    if(p.image_url){const i=new Image();i.className="thumb";i.src=imgUrl(p.image_url);i.alt="";th.replaceWith(i)}else th.textContent="sin foto";
+    const f0=(p.images||[])[0];if(f0||p.image_url){const i=new Image();i.className="thumb";i.loading="lazy";i.decoding="async";i.src=imgUrl((f0&&(f0.thumb||f0.path))||p.image_url);i.alt="";th.replaceWith(i)}else th.textContent="sin foto";
     d.querySelector("h3").textContent=p.name;
     d.querySelector(".meta").innerHTML=`${catLabel(p.cat)} · ${money(p.price)} `+(p.seasonal?'<span class="pill s">Temporada</span>':"")+(p.active?"":'<span class="pill">Oculto</span>');
     d.querySelector('[data-a=season]').textContent=p.seasonal?"Quitar de temporada":"Poner de temporada";
@@ -303,7 +322,7 @@ function render(){
   });
   if(!l.children.length)l.innerHTML='<p class="meta">No hay productos.</p>';
 }
-$("#filter").oninput=render;$("#fl_cat").onchange=render;$("#fl_col").onchange=render;
+let ft=0;$("#filter").oninput=()=>{clearTimeout(ft);ft=setTimeout(render,150)};$("#fl_cat").onchange=render;$("#fl_col").onchange=render;
 async function patch(p,v){
   const {error}=await sb.from("productos").update(v).eq("id",p.id);
   error?say("#listMsg",error.message,1):load();
@@ -317,7 +336,7 @@ async function remove(p){
 /* ---- formulario ---- */
 function openForm(p){
   editing=p||null;
-  gal=(p?.images?.length?p.images:(p?.image_url?[{path:p.image_url,color_id:null}]:[])).map(i=>({uid:++uidc,path:i.path,file:null,prev:imgUrl(i.path),color:i.color_id??null,price:i.price??null,name:i.name||""}));
+  gal=(p?.images?.length?p.images:(p?.image_url?[{path:p.image_url,color_id:null}]:[])).map(i=>({uid:++uidc,path:i.path,thumb:i.thumb||null,file:null,prev:imgUrl(i.thumb||i.path),color:i.color_id??null,price:i.price??null,name:i.name||""}));
   $("#fTitle").textContent=p?"Editar producto":"Nuevo producto";
   const v=(id,x)=>$("#f_"+id).value=x;
   v("name",p?.name||"");fillCat(p?.cat);v("price",p?.price??"");v("old",p?.old_price??"");
@@ -327,7 +346,7 @@ function openForm(p){
   $("#f_seasonal").checked=!!p?.seasonal;$("#f_active").checked=p?p.active:true;
   $("#f_desc").value=p?.description?.es||"";$("#f_feat").value=(p?.features?.es||[]).join("\n");
   $("#f_file").value="";drawGal();
-  vids=(p?.videos?.length?p.videos:(p?.video_url?[{url:p.video_url,color_id:null}]:[])).map(v=>({url:v.url,file:null,prev:/^https?:/.test(v.url)?v.url:imgUrl(v.url),color:v.color_id??null,afterUid:(gal.find(g=>g.path&&g.path===v.after)||{}).uid??null}));drawVids();say("#fMsg","");
+  vids=(p?.videos?.length?p.videos:(p?.video_url?[{url:p.video_url,color_id:null}]:[])).map(v=>({url:v.url,file:null,prev:rawUrl(v.url),color:v.color_id??null,afterUid:(gal.find(g=>g.path&&g.path===v.after)||{}).uid??null}));drawVids();say("#fMsg","");
   $("#overlay").classList.add("open");$("#f_name").focus();
 }
 function drawColors(){
@@ -377,7 +396,7 @@ function drawGal(){
   gal.forEach((g,i)=>{
     const d=document.createElement("div");d.className="gal-i";
     d.innerHTML='<img alt=""><div><div class="meta"></div><input class="gn" type="text" maxlength="80" placeholder="Nombre de esta referencia (opcional, reemplaza el nombre del producto)" aria-label="Nombre de esta referencia"><div class="ac"><select aria-label="Color de la foto"></select><input class="gp" type="number" min="0" step="1000" placeholder="Precio de esta foto" aria-label="Precio de esta foto (opcional)"><button type="button" class="btn sm" data-a="first">Hacer principal</button><button type="button" class="btn sm danger" data-a="del">Quitar</button></div></div>';
-    d.querySelector("img").src=g.prev;
+    {const im=d.querySelector("img");im.loading="lazy";im.decoding="async";im.src=g.prev}
     d.querySelector(".meta").textContent=i===0?"Foto principal":"Foto "+(i+1);
     const sel=d.querySelector("select");
     sel.innerHTML='<option value="">Sin color asignado</option>'+colors.map(c=>`<option value="${c.id}">${c.name.replace(/</g,"&lt;")}</option>`).join("");
@@ -451,22 +470,24 @@ $("#cancelBtn").onclick=()=>$("#overlay").classList.remove("open");
 document.addEventListener("keydown",e=>{if(e.key==="Escape")$("#overlay").classList.remove("open")});
 
 /* Redimensiona a máx. 1000px y convierte a WebP para que la tienda cargue rápido */
-function shrink(file){return new Promise((ok,ko)=>{
-  const i=new Image();i.onload=()=>{
-    const k=Math.min(1,1000/Math.max(i.width,i.height)),c=document.createElement("canvas");
-    c.width=Math.round(i.width*k);c.height=Math.round(i.height*k);c.getContext("2d").drawImage(i,0,0,c.width,c.height);
-    c.toBlob(b=>b?ok(b):ko(new Error("No se pudo procesar la imagen")),"image/webp",.85);
-  };i.onerror=()=>ko(new Error("Imagen inválida"));i.src=URL.createObjectURL(file);
-})}
+async function shrink(file,max=1000,q=.82){
+  let bmp;
+  try{bmp=await createImageBitmap(file)}
+  catch(e){bmp=await new Promise((ok,ko)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>ko(new Error("Imagen inválida"));i.src=URL.createObjectURL(file)})}
+  const w=bmp.width||bmp.naturalWidth,h=bmp.height||bmp.naturalHeight,k=Math.min(1,max/Math.max(w,h));
+  const c=document.createElement("canvas");c.width=Math.round(w*k);c.height=Math.round(h*k);c.getContext("2d").drawImage(bmp,0,0,c.width,c.height);
+  if(bmp.close)bmp.close();
+  return new Promise((ok,ko)=>c.toBlob(b=>b?ok(b):ko(new Error("No se pudo procesar la imagen")),"image/webp",q));
+}
 
 $("#form").onsubmit=async e=>{
   e.preventDefault();$("#saveBtn").disabled=true;say("#fMsg","Guardando…");
   try{
-    const oldPaths=[...new Set([...(editing?.images||[]).map(i=>i.path),editing?.image_url,editing?.video_url,...(editing?.videos||[]).map(v=>v.url)].filter(Boolean))];
+    const oldPaths=[...new Set([...(editing?.images||[]).map(i=>i.path),editing?.image_url,...(editing?.images||[]).map(i=>i.thumb),editing?.video_url,...(editing?.videos||[]).map(v=>v.url)].filter(Boolean))];
     const images=[];
     for(const [i,g] of gal.entries()){
-      if(g.file){say("#fMsg",`Subiendo foto ${i+1} de ${gal.length} a GitHub…`);g.path=await uploadImage(await shrink(g.file));g.file=null}
-      images.push({path:g.path,color_id:g.color,price:g.price||null,name:g.name||null});
+      if(g.file){say("#fMsg",`Subiendo foto ${i+1} de ${gal.length} a GitHub…`);const r=await uploadPair(g.file);g.path=r.path;g.thumb=r.thumb;g.file=null}
+      images.push({path:g.path,thumb:g.thumb||null,color_id:g.color,price:g.price||null,name:g.name||null});
     }
     for(const [i,v] of vids.entries())if(v.file){say("#fMsg",`Subiendo video ${i+1} de ${vids.length}…`);v.url=await uploadVideo(v.file);v.file=null}
     const videos=vids.map(v=>{const g=gal.find(x=>x.uid===v.afterUid);return {url:v.url,color_id:g?g.color:v.color,after:g?g.path:null}});
@@ -482,7 +503,7 @@ $("#form").onsubmit=async e=>{
       active:$("#f_active").checked,image_url:images[0]?.path||null,images,videos,video_url:videos[0]?.url||null,description,features};
     const q=editing?sb.from("productos").update(row).eq("id",editing.id):sb.from("productos").insert(row);
     const {error}=await q;if(error)throw error;
-    for(const o of oldPaths)if(!images.some(i=>i.path===o)&&!videos.some(v=>v.url===o))await dropAny(o);
+    for(const o of oldPaths)if(!images.some(i=>i.path===o||i.thumb===o)&&!videos.some(v=>v.url===o))await dropAny(o);
     $("#overlay").classList.remove("open");load();
     if(failed.length)say("#listMsg","Guardado, pero no se pudo traducir a: "+failed.join(", ")+" (se dejó en español).",1);
   }catch(err){say("#fMsg","Error: "+(err.message||err),1)}
@@ -641,6 +662,26 @@ async function loadReviews(){
   });
   if(!data.length)l.innerHTML='<p class="meta">Aún no hay comentarios de clientes.</p>';
 }
+
+/* ---- optimizar fotos antiguas ---- */
+$("#optBtn").onclick=async()=>{
+  $("#optBtn").disabled=true;
+  try{
+    const todo=[];rows.forEach(p=>(p.images||[]).forEach(im=>{if(im.path&&!im.thumb&&!/^https?:/.test(im.path))todo.push([p,im])}));
+    if(!todo.length){say("#optMsg","Todas las fotos ya están optimizadas ✓");return}
+    let n=0;
+    for(const [p,im] of todo){
+      say("#optMsg",`Optimizando ${++n} de ${todo.length}…`);
+      const r=await fetch(rawUrl(im.path),{cache:"no-store"});if(!r.ok)continue;
+      const blob=await shrink(await r.blob(),480,.72);
+      const tp=im.path.replace(/\.webp$/,"")+"-s.webp";
+      await uploadBlob(tp,blob);im.thumb=tp;
+      const {error}=await sb.from("productos").update({images:p.images}).eq("id",p.id);if(error)throw error;
+    }
+    say("#optMsg","Listo ✓ Se optimizaron "+todo.length+" fotos.");load();
+  }catch(e){say("#optMsg","Error: "+(e.message||e),1)}
+  finally{$("#optBtn").disabled=false}
+};
 
 /* ---- ajustes ---- */
 async function loadSettings(){

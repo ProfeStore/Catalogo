@@ -9,6 +9,8 @@
 <meta name="theme-color" content="#000000">
 <script>try{if(!matchMedia("(prefers-reduced-motion: reduce)").matches)document.documentElement.classList.add("pre")}catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://lddvsxmatxtqjapcuakx.supabase.co" crossorigin>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -187,6 +189,12 @@ html,body{overflow-x:clip}
 .ig-crop iframe{position:absolute;left:0;top:calc(var(--ig-top) * -1);width:100%;height:calc(100% + var(--ig-top) + var(--ig-bottom));border:0;display:block}
 .m-main video{width:100%;max-height:60vh;border-radius:12px;background:#000;display:block}
 .m-img{align-content:start}
+
+.card.sk .card-img{background:linear-gradient(90deg,var(--surface-2),var(--surface),var(--surface-2));background-size:200% 100%;animation:shim 1.2s linear infinite}
+.card.sk .card-body span{height:14px;border-radius:7px;background:var(--surface-2);display:block;margin:6px 0;width:70%}
+.card.sk .card-body span+span{width:40%}
+@keyframes shim{to{background-position:-200% 0}}
+@media(prefers-reduced-motion:reduce){.card.sk .card-img{animation:none}}
 
 /* PROTECCIÓN */
 .prot-wrap{padding:8px 0 4px}
@@ -707,14 +715,18 @@ const FALLBACK = [
   f:{es:["Horma amplia","Cuero teñido a mano","Suela Goodyear"],en:["Roomy last","Hand-dyed leather","Goodyear welt sole"],pt:["Forma ampla","Couro tingido à mão","Sola Goodyear"],fr:["Forme large","Cuir teinté main","Semelle Goodyear"]}}
 ];
 
-let P = FALLBACK;
+let P = [], LOADED = false;
 /* Las fotos viven en la carpeta images/ de GitHub; en la base solo se guarda la ruta */
-const imgSrc=p=>!p?"":/^https?:/.test(p)?p:"https://raw.githubusercontent.com/ProfeStore/Catalogo/HEAD/"+p;
+/* Las fotos salen del CDN (rápido y con caché); si aún no lo tiene, cae al enlace directo de GitHub */
+const CDN="https://cdn.jsdelivr.net/gh/ProfeStore/Catalogo/",RAWB="https://raw.githubusercontent.com/ProfeStore/Catalogo/HEAD/";
+document.addEventListener("error",e=>{const t=e.target;if(t&&t.tagName==="IMG"&&!t.dataset.fb&&t.src.startsWith(CDN)){t.dataset.fb=1;t.src=RAWB+t.src.slice(CDN.length)}},true);
+const imgSrc=p=>!p?"":/^https?:/.test(p)?p:CDN+p;
+const rawSrc=p=>!p?"":/^https?:/.test(p)?p:RAWB+p;
 const LANGS=["es","en","pt","fr"];
 function buildMedia(imgs,vids){
   const media=[],used=new Set();
   imgs.forEach((im,i)=>{
-    media.push({type:"img",src:im.src,color:im.color,price:im.price,name:im.name});
+    media.push({type:"img",src:im.src,thumb:im.thumb,color:im.color,price:im.price,name:im.name});
     const lastOfColor=!!im.color&&!imgs.slice(i+1).some(x=>x.color===im.color);
     vids.forEach((v,j)=>{
       if(used.has(j))return;
@@ -728,13 +740,13 @@ function fromRow(r){
   const d=r.description||{},f=r.features||{},dd={},ff={};
   LANGS.forEach(l=>{dd[l]=d[l]||d.es||"";ff[l]=(f[l]&&f[l].length?f[l]:f.es)||[]});
   const c=Array.isArray(r.colors)&&r.colors.length>=3?r.colors:["#1c1c1f","#e5322d","#f4f4f4"];
-  const o={id:r.id,name:r.name,cat:r.cat,type:r.type||"sneaker",price:r.price,old:r.old_price||undefined,c,comfort:r.comfort||4,tag:r.tag||undefined,seasonal:!!r.seasonal,colorIds:r.color_ids||[],sizes:Array.isArray(r.sizes)?r.sizes:ALL_SIZES,imgs:(Array.isArray(r.images)&&r.images.length?r.images:(r.image_url?[{path:r.image_url,color_id:null}]:[])).map(i=>({path:i.path,src:imgSrc(i.path),color:i.color_id??null,price:i.price||null,name:i.name||""})),img:imgSrc((Array.isArray(r.images)&&r.images[0]?.path)||r.image_url),videos:(Array.isArray(r.videos)&&r.videos.length?r.videos:(r.video_url?[{url:r.video_url,color_id:null}]:[])).map(v=>({src:imgSrc(v.url),color:v.color_id??null,after:v.after||null})),d:dd,f:ff};
-  o.media=buildMedia(o.imgs,o.videos);return o;
+  const o={id:r.id,name:r.name,cat:r.cat,type:r.type||"sneaker",price:r.price,old:r.old_price||undefined,c,comfort:r.comfort||4,tag:r.tag||undefined,seasonal:!!r.seasonal,colorIds:r.color_ids||[],sizes:Array.isArray(r.sizes)?r.sizes:ALL_SIZES,imgs:(Array.isArray(r.images)&&r.images.length?r.images:(r.image_url?[{path:r.image_url,color_id:null}]:[])).map(i=>({path:i.path,src:imgSrc(i.path),thumb:imgSrc(i.thumb||i.path),color:i.color_id??null,price:i.price||null,name:i.name||""})),img:imgSrc((Array.isArray(r.images)&&r.images[0]?.path)||r.image_url),videos:(Array.isArray(r.videos)&&r.videos.length?r.videos:(r.video_url?[{url:r.video_url,color_id:null}]:[])).map(v=>({src:rawSrc(v.url),color:v.color_id??null,after:v.after||null})),d:dd,f:ff};
+  o.media=buildMedia(o.imgs,o.videos);if(o.imgs[0])o.img=o.imgs[0].thumb;return o;
 }
 const sbGet=async q=>{const r=await fetch(`${SB_URL}/rest/v1/${q}`,{headers:{apikey:SB_KEY,Authorization:"Bearer "+SB_KEY}});if(!r.ok)throw new Error(r.status);return r.json()};
 async function loadProducts(){
   const cached=store.get("catalog",null);
-  if(cached){P=cached.map(fromRow);COLORS=store.get("colors",[]);renderAll()}
+  if(cached){P=cached.map(fromRow);COLORS=store.get("colors",[]);LOADED=true;renderAll()}
   const [prod,col,ree,aj,rev,cat]=await Promise.allSettled([
     sbGet("productos?select=*&active=eq.true&order=sort.asc,id.asc"),
     sbGet("colores?select=*"),
@@ -744,7 +756,8 @@ async function loadProducts(){
     sbGet("categorias?select=*&order=sort.asc,id.asc")]);
   if(cat.status==="fulfilled")CATS=cat.value;
   if(rev.status==="fulfilled")REVIEWS=rev.value;
-  if(prod.status==="fulfilled"){store.set("catalog",prod.value);P=prod.value.map(fromRow)}else if(!cached)P=FALLBACK;
+  LOADED=true;
+  if(prod.status==="fulfilled"){store.set("catalog",prod.value);P=prod.value.map(fromRow)}else if(!cached)P=FALLBACK.map(x=>({sizes:ALL_SIZES,imgs:[],videos:[],media:[],colorIds:[],...x}));
   if(col.status==="fulfilled"){COLORS=col.value;store.set("colors",COLORS)}
   if(ree.status==="fulfilled")REELS=ree.value;
   if(aj.status==="fulfilled")aj.value.forEach(x=>{if(x.clave==="direccion"&&x.valor)ADDR=x.valor;if(x.clave==="mapa"&&x.valor)MAPQ=x.valor;if(x.clave==="maps_link"&&x.valor)MAP_LINK=x.valor;if(x.clave==="whatsapp"&&x.valor)WA_NUMBER=x.valor.replace(/\D/g,"");if(x.clave==="instagram"&&x.valor)IG_USER=x.valor.replace(/^@|.*instagram\.com\//g,"").replace(/\/.*$/,"")});
@@ -920,6 +933,7 @@ function renderSeason(){
 }
 function renderGrid(){
   const l=list(),g=$("#grid");
+  if(!LOADED&&!P.length){g.innerHTML=Array(8).fill('<div class="card sk"><div class="card-img"></div><div class="card-body"><span></span><span></span></div></div>').join("");$("#count").textContent="";return}
   $("#count").textContent=t("results")(l.length);
   g.innerHTML="";
   if(!l.length){g.innerHTML=`<p class="empty" style="grid-column:1/-1"></p>`;g.firstChild.textContent=t("none");return}
@@ -1026,7 +1040,7 @@ function drawGallery(p){
     const th=document.createElement("div");th.className="thumbs";
     md.forEach((x,i)=>{
       const b=document.createElement("button");b.type="button";b.className="thumb"+(x.type==="vid"?" vid":"");b.setAttribute("aria-pressed",i===state.gi);
-      if(x.type==="img")b.innerHTML=`<img src="${x.src}" alt="" loading="lazy">`;
+      if(x.type==="img")b.innerHTML=`<img src="${x.thumb||x.src}" alt="" loading="lazy" decoding="async">`;
       else{
         const c=colorsOf(p).find(c=>c.id===x.color);b.setAttribute("aria-label","Video");
         b.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z" fill="currentColor"/></svg>'+(c?`<i style="background:${c.hex}"></i>`:"");
