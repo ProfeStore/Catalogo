@@ -302,7 +302,7 @@ async function dropImage(p){
 
 /* ---- lista ---- */
 async function load(){
-  const {data,error}=await sb.from("productos").select("*").order("sort").order("id");
+  const {data,error}=await sb.from("productos").select("*").order("id",{ascending:false});
   if(error){say("#listMsg","No se pudo cargar: "+error.message,1);return}
   rows=data;say("#listMsg","");render();
   loadCats();loadBrands();loadColors();loadReels();loadSettings();loadReviews();
