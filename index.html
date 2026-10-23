@@ -187,6 +187,9 @@ html,body{overflow-x:clip}
 .v-embed.lbv{width:min(92vw,900px)}
 .v-embed.lbv.tall{width:auto;height:calc(100vh - 110px);max-width:92vw}
 .m-main{position:relative}
+.m-main img.photo{transition:filter .25s}
+.m-main img.photo.lo{filter:blur(3px)}
+.m-img{min-height:min(60vh,420px)}
 .m-expand{position:absolute;right:8px;top:8px;width:40px;height:40px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:1.2rem}
 .lb-body svg{width:min(92vw,720px);height:auto;background:#fff;border-radius:16px;padding:16px}
 .lb-x{position:absolute;top:12px;right:12px;width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.4);background:rgba(0,0,0,.5);color:#fff;font-size:1.7rem;line-height:1}
@@ -985,6 +988,7 @@ function card(p,uid){
   const gd=c.querySelector(".gender");if(gd)gd.textContent=genLabel(p.gender);
   c.querySelector(".price").innerHTML=fmt(p.price)+(p.old?`<span class="old">${fmt(p.old)}</span>`:"");
   const open=()=>openModal(p);
+  c.addEventListener("pointerenter",()=>preloadCover(p),{once:true,passive:true});c.addEventListener("touchstart",()=>preloadCover(p),{once:true,passive:true});
   img.onclick=open;c.querySelector(".btn").textContent=t("view");c.querySelector(".btn").onclick=open;
   const fb=c.querySelector(".fav");
   fb.setAttribute("aria-label","♥ "+p.name);
@@ -1081,6 +1085,9 @@ function curName(p){
 }
 function drawName(p){$("#mName").textContent=curName(p)}
 function drawPrice(p){const v=curPrice(p);$("#mPrice").innerHTML=fmt(v)+(p.old&&v===p.price?`<span class="old">${fmt(p.old)}</span>`:"")}
+const preloaded=new Set();
+function preload(u){if(!u||preloaded.has(u))return;preloaded.add(u);const i=new Image();i.decoding="async";i.src=u}
+function preloadCover(p){const x=(p.media||[]).find(m=>m.type==="img");if(x)preload(x.src)}
 function drawGallery(p){
   const w=$("#mImg");w.innerHTML="";
   const m=document.createElement("div");m.className="m-main";
@@ -1102,10 +1109,18 @@ function drawGallery(p){
     const ex=document.createElement("button");ex.type="button";ex.className="m-expand";ex.setAttribute("aria-label","⤢");ex.textContent="⤢";
     ex.onclick=()=>openLb(lbItems(p),state.gi,i=>{state.gi=i;drawGallery(p)});m.appendChild(ex);
   }else{
-    m.innerHTML=cur?`<img class="photo" src="${cur.src}" alt="" decoding="async">`:shoe(p.type,p.c,"m"+p.id);
+    m.innerHTML=cur?`<img class="photo${cur.thumb&&cur.thumb!==cur.src?" lo":""}" src="${cur.thumb||cur.src}" alt="" decoding="async" fetchpriority="high">`:shoe(p.type,p.c,"m"+p.id);
+    /* Se muestra al instante la miniatura (ya en caché) y se cambia a la foto grande cuando termina de cargar */
+    if(cur&&cur.thumb&&cur.thumb!==cur.src){
+      const im=m.querySelector("img"),h=new Image();h.decoding="async";
+      h.onload=()=>{if(im.isConnected){im.src=h.src;im.classList.remove("lo")}};
+      h.onerror=()=>{if(!h.dataset.fb&&cur.src.startsWith(CDN)){h.dataset.fb=1;h.src=RAWB+cur.src.slice(CDN.length)}};
+      h.src=cur.src;
+    }
     m.onclick=()=>openLb(lbItems(p),state.gi,i=>{state.gi=i;drawGallery(p)});
   }
   w.appendChild(m);drawPrice(p);drawName(p);
+  [state.gi-1,state.gi+1].forEach(i=>{const x=md[i];if(x&&x.type==="img")preload(x.src)});
   if(md.length>1){
     const th=document.createElement("div");th.className="thumbs";
     md.forEach((x,i)=>{
