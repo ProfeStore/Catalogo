@@ -60,6 +60,7 @@ input[type=checkbox]:checked::after{transform:translateX(20px)}
 /* Barra de búsqueda de productos */
 .bar{display:grid;gap:10px;margin:8px 0 14px}
 .bar .filters{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.bar .filters #fl_cat{grid-column:1/-1}
 #newBtn{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:15;min-height:56px;padding:0 24px;box-shadow:0 10px 28px rgba(212,0,31,.45);font-size:1rem}
 
 /* Listas */
@@ -140,8 +141,9 @@ legend small{display:block;font-family:'Manrope',sans-serif;font-weight:500;font
   .overlay{padding:24px}
   .modal{min-height:0;border-radius:18px;border:1px solid var(--line);overflow:hidden}
   .fbody{padding:18px 18px 22px}
-  .bar{grid-template-columns:1fr auto auto;align-items:center}
+  .bar{grid-template-columns:1fr repeat(3,auto);align-items:center}
   .bar .filters{display:contents}
+  .bar .filters #fl_cat{grid-column:auto}
   .item{grid-template-columns:72px 1fr auto}
   .acts{grid-column:auto;display:flex;flex-wrap:wrap}
   .acts [data-a]{order:0}
@@ -176,7 +178,8 @@ legend small{display:block;font-family:'Manrope',sans-serif;font-weight:500;font
         <input type="search" id="filter" placeholder="Buscar producto…" aria-label="Buscar producto">
         <div class="filters">
           <select id="fl_cat" aria-label="Filtrar por categoría"><option value="">Todas las categorías</option></select>
-          <select id="fl_col" aria-label="Filtrar por color"><option value="">Todos los colores</option></select>
+          <select id="fl_brand" aria-label="Filtrar por marca"><option value="">Todas las marcas</option></select>
+          <select id="fl_gender" aria-label="Filtrar por público"><option value="">Para: todos</option><option value="hombre">Solo Hombre</option><option value="dama">Solo Dama</option><option value="ambos">Hombre y Dama</option></select>
         </div>
         <button class="btn primary" id="newBtn" type="button">+ Nuevo producto</button>
       </div>
@@ -387,8 +390,8 @@ function say(sel,t,err){const m=$(sel);m.textContent=t;m.className="msg"+(t?(err
 let rq=0;function render(){cancelAnimationFrame(rq);rq=requestAnimationFrame(renderNow)}
 function renderNow(){
   const q=$("#filter").value.trim().toLowerCase(),l=$("#list");l.innerHTML="";
-  const fc=$("#fl_cat").value,fk=$("#fl_col").value;
-  const vis=rows.filter(p=>(!q||p.name.toLowerCase().includes(q))&&(!fc||p.cat===fc)&&(!fk||(p.color_ids||[]).includes(+fk)));
+  const fc=$("#fl_cat").value,fb=$("#fl_brand").value,fg=$("#fl_gender").value;
+  const vis=rows.filter(p=>(!q||p.name.toLowerCase().includes(q))&&(!fc||p.cat===fc)&&(!fb||String(p.brand_id)===fb)&&(!fg||p.gender===fg));
   [...vis.filter(p=>p.seasonal),...vis.filter(p=>!p.seasonal)].forEach(p=>{
     const d=document.createElement("div");d.className="item"+(p.active?"":" off");
     d.innerHTML=`<div class="thumb"></div><div><h3></h3><div class="meta"></div></div>
@@ -410,7 +413,7 @@ function renderNow(){
   });
   if(!l.children.length)l.innerHTML='<p class="meta">No hay productos.</p>';
 }
-let ft=0;$("#filter").oninput=()=>{clearTimeout(ft);ft=setTimeout(render,150)};$("#fl_cat").onchange=render;$("#fl_col").onchange=render;
+let ft=0;$("#filter").oninput=()=>{clearTimeout(ft);ft=setTimeout(render,150)};$("#fl_cat").onchange=render;$("#fl_brand").onchange=render;$("#fl_gender").onchange=render;
 async function patch(p,v){
   const {error}=await sb.from("productos").update(v).eq("id",p.id);
   error?say("#listMsg",error.message,1):load();
@@ -647,9 +650,9 @@ function fillCat(sel){
   el.value=sel||(cats[0]&&cats[0].slug)||"";
 }
 function fillFilters(){
-  const a=$("#fl_cat"),b=$("#fl_col"),va=a.value,vb=b.value;
+  const a=$("#fl_cat"),b=$("#fl_brand"),va=a.value,vb=b.value;
   a.innerHTML='<option value="">Todas las categorías</option>'+cats.map(c=>`<option value="${c.slug}">${c.name.replace(/</g,"&lt;")}</option>`).join("");
-  b.innerHTML='<option value="">Todos los colores</option>'+colors.map(c=>`<option value="${c.id}">${c.name.replace(/</g,"&lt;")}</option>`).join("");
+  b.innerHTML='<option value="">Todas las marcas</option>'+brands.map(c=>`<option value="${c.id}">${c.name.replace(/</g,"&lt;")}</option>`).join("");
   a.value=va;b.value=vb;
 }
 
@@ -657,7 +660,7 @@ function fillFilters(){
 async function loadBrands(){
   const {data,error}=await sb.from("marcas").select("*").order("sort").order("id");
   if(error)return say("#brMsg","Falta ejecutar supabase-v6.sql: "+error.message,1);
-  brands=data;say("#brMsg","");
+  brands=data;say("#brMsg","");fillFilters();render();
   const l=$("#brList");l.innerHTML="";
   brands.forEach(b=>{
     const used=rows.filter(p=>p.brand_id===b.id).length;
@@ -711,7 +714,7 @@ function fillBrand(sel){
 async function loadColors(){
   const {data,error}=await sb.from("colores").select("*").order("sort").order("id");
   if(error)return say("#colMsg","Falta ejecutar supabase-v2.sql: "+error.message,1);
-  colors=data;say("#colMsg","");fillFilters();
+  colors=data;say("#colMsg","");
   const l=$("#colList");l.innerHTML="";
   colors.forEach(c=>{
     const d=document.createElement("div");d.className="rowitem";
