@@ -202,6 +202,7 @@ legend{padding:0 6px;color:var(--muted);font-size:.85rem;font-weight:700}
       <label>Precio (COP)<input id="f_price" type="number" min="0" step="1000" required></label>
       <label>Precio anterior (opcional, tacha el precio)<input id="f_old" type="number" min="0" step="1000"></label>
       <label>Comodidad (1-5)<input id="f_comfort" type="number" min="1" max="5" value="4"></label>
+      <label>Para<select id="f_gender"><option value="">Sin especificar</option><option value="hombre">Hombre</option><option value="dama">Dama</option></select></label>
       <label>Etiqueta<select id="f_tag"><option value="">Ninguna</option><option value="new">NUEVO</option><option value="sale">OFERTA</option><option value="limited">LIMITADO</option><option value="exclusive">EXCLUSIVO</option></select></label>
     </div>
     <fieldset><legend>Colores disponibles (se registran en la pestaña «Colores»)</legend>
@@ -253,7 +254,7 @@ let cats=[],brands=[];const catLabel=k=>(cats.find(c=>c.slug===k)||{}).name||k;
 const money=n=>new Intl.NumberFormat("es-CO",{style:"currency",currency:"COP",maximumFractionDigits:0}).format(n);
 let rows=[],editing=null,gal=[],vids=[],uidc=0;
 
-const ALL_SIZES=[35,36,37,38,39,40,41,42];
+const ALL_SIZES=[36,37,38,39,40,41,42,43,44];
 let colors=[],reels=[],selColors=[],selSizes=[];
 /* ---- GitHub: aquí viven las fotos (carpeta images/ del repo) ---- */
 const GH_OWNER="ProfeStore",GH_REPO="Catalogo",GH_DIR="images";
@@ -352,7 +353,7 @@ function openForm(p){
   $("#fTitle").textContent=p?"Editar producto":"Nuevo producto";
   const v=(id,x)=>$("#f_"+id).value=x;
   v("name",p?.name||"");fillCat(p?.cat);fillBrand(p?.brand_id);v("price",p?.price??"");v("old",p?.old_price??"");
-  v("comfort",p?.comfort||4);v("tag",p?.tag||"");
+  v("comfort",p?.comfort||4);v("tag",p?.tag||"");v("gender",p?.gender||"");
   selColors=[...(p?.color_ids||[])];selSizes=p?[...(p.sizes||[])].filter(n=>ALL_SIZES.includes(n)):[...ALL_SIZES];
   drawColors();drawSizes();
   $("#f_seasonal").checked=!!p?.seasonal;$("#f_active").checked=p?p.active:true;
@@ -510,7 +511,7 @@ $("#form").onsubmit=async e=>{
     const hx=selColors.map(id=>colors.find(c=>c.id===id)?.hex).filter(Boolean),dflt=["#1c1c1f","#e5322d","#f4f4f4"];
     const old=$("#f_old").value;
     const row={name:$("#f_name").value.trim(),cat:$("#f_cat").value,brand_id:$("#f_brand").value?+$("#f_brand").value:null,price:+$("#f_price").value,
-      old_price:old?+old:null,comfort:Math.min(5,Math.max(1,+$("#f_comfort").value||4)),tag:$("#f_tag").value||null,
+      old_price:old?+old:null,comfort:Math.min(5,Math.max(1,+$("#f_comfort").value||4)),tag:$("#f_tag").value||null,gender:$("#f_gender").value||null,
       colors:[0,1,2].map(i=>hx[i]||dflt[i]),color_ids:selColors,sizes:selSizes,seasonal:$("#f_seasonal").checked,
       active:$("#f_active").checked,image_url:images[0]?.path||null,images,videos,video_url:videos[0]?.url||null,description,features};
     const q=editing?sb.from("productos").update(row).eq("id",editing.id):sb.from("productos").insert(row);
