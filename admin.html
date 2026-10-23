@@ -277,8 +277,8 @@ legend small{display:block;font-family:'Manrope',sans-serif;font-weight:500;font
       </fieldset>
       <fieldset><legend>Precio y etiqueta</legend>
         <div class="grid2">
-          <label>Precio (COP)<input id="f_price" type="number" inputmode="numeric" min="0" step="1000" required></label>
-          <label>Precio anterior (tacha el precio)<input id="f_old" type="number" inputmode="numeric" min="0" step="1000" placeholder="Opcional"></label>
+          <label>Precio (COP)<input id="f_price" type="number" inputmode="numeric" min="0" step="1" required></label>
+          <label>Precio anterior (tacha el precio)<input id="f_old" type="number" inputmode="numeric" min="0" step="1" placeholder="Opcional"></label>
         </div>
         <label>Etiqueta<select id="f_tag"><option value="">Ninguna</option><option value="new">NUEVO</option><option value="sale">OFERTA</option><option value="limited">LIMITADO</option><option value="exclusive">EXCLUSIVO</option></select></label>
       </fieldset>
@@ -483,7 +483,7 @@ function drawGal(){
   const w=$("#f_gal");w.innerHTML="";
   gal.forEach((g,i)=>{
     const d=document.createElement("div");d.className="gal-i";
-    d.innerHTML='<img alt=""><div class="gal-h"><div class="meta"></div><div class="gal-b"><button type="button" class="btn sm" data-a="first">Hacer principal</button><button type="button" class="btn sm danger" data-a="del">Quitar</button></div></div><div class="gal-f"><input class="gn" type="text" maxlength="80" placeholder="Nombre de esta referencia (opcional)" aria-label="Nombre de esta referencia"><div class="two"><select aria-label="Color de la foto"></select><input class="gp" type="number" inputmode="numeric" min="0" step="1000" placeholder="Precio (opcional)" aria-label="Precio de esta foto (opcional)"></div></div>';
+    d.innerHTML='<img alt=""><div class="gal-h"><div class="meta"></div><div class="gal-b"><button type="button" class="btn sm" data-a="first">Hacer principal</button><button type="button" class="btn sm danger" data-a="del">Quitar</button></div></div><div class="gal-f"><input class="gn" type="text" maxlength="80" placeholder="Nombre de esta referencia (opcional)" aria-label="Nombre de esta referencia"><div class="two"><select aria-label="Color de la foto"></select><input class="gp" type="number" inputmode="numeric" min="0" step="1" placeholder="Precio (opcional)" aria-label="Precio de esta foto (opcional)"></div></div>';
     {const im=d.querySelector("img");im.loading="lazy";im.decoding="async";im.src=g.prev}
     d.querySelector(".meta").textContent=i===0?"Foto principal":"Foto "+(i+1);
     const sel=d.querySelector("select");
