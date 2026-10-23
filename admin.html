@@ -452,11 +452,11 @@ $("#v_file").onchange=e=>{
   vids.push({url:null,file:f,prev:URL.createObjectURL(f),color:null,afterUid:null});drawVids();say("#fMsg","");
 };
 $("#v_link").onclick=()=>{
-  const u=(prompt("Pega el enlace del video: YouTube (puede ser «no listado»), Google Drive (compartido con «cualquier persona con el enlace»), Vimeo o un enlace directo a .mp4","")||"").trim();if(!u)return;
+  const u=(prompt("Pega el enlace del video: Instagram, YouTube, Google Drive, Vimeo o un enlace directo a .mp4","")||"").trim();if(!u)return;
   const vi=vidInfo(u);
-  if(vi&&vi.ig)return alert("Los videos de Instagram no se reproducen desde la tienda (Instagram solo muestra «Ver en Instagram»). Sube el video a YouTube (como «no listado») o a Google Drive y pega ese enlace.");
+  if(vi&&vi.ig){const code=(u.match(/instagram\.com\/(?:[^\/]+\/)?(?:reel|reels|p|tv)\/([\w-]+)/)||[])[1];vids.push({url:`https://www.instagram.com/reel/${code}/`,file:null,prev:u,color:null,afterUid:null});drawVids();return}
   if(vi){vids.push({url:u,file:null,prev:u,color:null,afterUid:null});drawVids();return}
-  if(!/^https:\/\/.+\.(mp4|webm|mov)(\?.*)?$/i.test(u))return alert("Enlace no reconocido. Usa YouTube, Google Drive, Vimeo o un enlace directo a un video (.mp4, .webm o .mov).");
+  if(!/^https:\/\/.+\.(mp4|webm|mov)(\?.*)?$/i.test(u))return alert("Enlace no reconocido. Usa Instagram, YouTube, Google Drive, Vimeo o un enlace directo a un video (.mp4, .webm o .mov).");
   vids.push({url:u,file:null,prev:u,color:null,afterUid:null});drawVids();
 };
 async function uploadVideo(file){
